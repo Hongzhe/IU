@@ -1,17 +1,7 @@
 #pragma once
 #include <string>
 #include <fstream>
-class Lexer {
-private:
-	unsigned lineno;
-	ifstream fin;
-
-public:
-	Lexer();
-	Token getToken();
-	void openFile(std::string file);
-	void closeFile();
-};
+#include <set>
 
 enum Token_Type {
 	TK_OBJ_ID = 258,
@@ -27,3 +17,21 @@ struct Token {
 	Token_Type type;
 	std::string lexem;
 };
+
+class Lexer {
+private:
+	unsigned lineno;
+	std::ifstream fin;
+	char nextChar();
+	void putBack();
+	void init_keyword();
+public:
+	Lexer();
+	Token getToken();
+	void openFile(std::string file);
+	void closeFile();
+	std::set<std::string> keywords;
+};
+
+
+
