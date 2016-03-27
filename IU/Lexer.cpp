@@ -24,6 +24,7 @@ void Lexer::init_keyword() {
 	keywords.insert("true");
 	keywords.insert("false");
 	keywords.insert("void");
+	keywords.insert("return");
 }
 
 void Lexer::openFile(string filename)
@@ -76,6 +77,7 @@ Token Lexer::getToken()
 	{
 		if (fin.eof()) {
 			state = EOF_STATE;
+			token.type = TK_EOF;
 			break;
 		}
 		char c = (char)fin.get();
@@ -101,10 +103,72 @@ Token Lexer::getToken()
 			else if (c == '\'') {
 				state = CHAR_STATE;
 				token.type = TK_CHAR;
+				token.lexem = c;
 			}
 			else if (c == '\"') {
 				state = STR_STATE;
 				token.type = TK_STR_CONST;
+				token.lexem = c;
+			}
+			else if (c == '=') {
+				token.type = TK_ASSIGN;
+				token.lexem = c;
+				state = ASSIGN_STATE;
+			}
+			else if (c == '>') {
+				token.type = TK_GT;
+				token.lexem = c;
+				state = GT_STATE;
+			}
+			else if (c == '<') {
+				token.type = TK_LE;
+				token.lexem = c;
+				state = LE_STATE;
+			}
+			else if (c == '/') {
+				token.type = TK_DIVID;
+				token.lexem = c;
+				state = DIVID_STATE;
+			}
+			else if (c == '*') {
+				token.type = TK_MULTIPLY;
+				token.lexem = c;
+				state = DONE_STATE;
+			}
+			else if (c == '+') {
+				token.type = TK_ADD;
+				token.lexem = c;
+				state = DONE_STATE;
+			}
+			else if (c == '-') {
+				token.type = TK_MINUS;
+				token.lexem = c;
+				state = DONE_STATE;
+			}
+			else if (c == '(') {
+				token.type = TK_LEFT_PRAN;
+				token.lexem = c;
+				state = DONE_STATE;
+			}
+			else if (c == ')') {
+				token.type = TK_RIGHT_PRAN;
+				token.lexem = c;
+				state = DONE_STATE;
+			}
+			else if (c == '{') {
+				token.type = TK_LEFT_BRAC;
+				token.lexem = c;
+				state = DONE_STATE;
+			}
+			else if (c == '}') {
+				token.type = TK_RIGHT_PRAN;
+				token.lexem = c;
+				state = DONE_STATE;
+			}
+			else if (c == '.') {
+				token.type = TK_DOT;
+				token.lexem = c;
+				state = DONE_STATE;
 			}
 			break;
 		case OBJID_STATE:
@@ -199,7 +263,75 @@ Token Lexer::getToken()
 			}
 			str_escapelevel++;
 			break;
+		case ASSIGN_STATE:
+			if (c == '=') {
+				token.type = TK_EQ;
+				token.lexem.append(1, c);
+			}
+			else {
+				putBack();
+			}
+			state = DONE_STATE;
+			break;
+		case GT_STATE:
+			if (c == '=') {
+				token.type = TK_GEQ;
+				token.lexem.append(1, c);
+			}
+			else {
+				putBack();
+			}
+			state = DONE_STATE;
+			break;
+		case LE_STATE:
+			if (c == '=') {
+				token.type = TK_LEQ;
+				token.lexem.append(1, c);
+			}
+			else {
+				putBack();
+			}
+			state = DONE_STATE;
+			break;
+		case DIVID_STATE:
+			if (c == '/') {
+				state = ONELINE_COMMENT_STATE;
+			}
+			else if (c == '*') {
+				state = MULTILINE_COMMENT_STATE;
+			}
+			else {
+				putBack();
+				state = DONE_STATE;
+			}
+			break;
+		case ONELINE_COMMENT_STATE:
+			if (c == '\n') {
+				state = DONE_STATE;
+			}
+			token.lexem.append(1, c);
+			break;
+		case MULTILINE_COMMENT_STATE:
+			if (c == '*') {
+				c = nextChar();
+				if (c == '/') {
+					state = DONE_STATE;
+				}
+				else {
+					putBack();
+				}
+			}
+			token.lexem.append(1, c);
+			break;
 		}
+
+		if (state == DONE_STATE && token.type == TK_OBJ_ID) {
+			set<string>::iterator it = keywords.find(token.lexem);
+			if (it != keywords.end()) {
+				token.type = TK_KEYWORD;
+			}
+		}
+		
 	}
 	return token;
 }

@@ -12,11 +12,12 @@ using namespace std;
 int main()
 {
 	Lexer iuLexer;
-	iuLexer.openFile("c:/Users/Hongzhe/Downloads/assign1/first.IU");
-	Token token = iuLexer.getToken();
-	token = iuLexer.getToken();
-	token = iuLexer.getToken();
-	cout << token.type << " " << token.lexem << endl;
+	iuLexer.openFile("c:/code/IU/test/first.IU");
+	Token token;
+	while ((token = iuLexer.getToken()).type != TK_EOF) {
+		cout << token.type << " " << token.lexem << endl;
+	}
+	
     return 0;
 }
 
