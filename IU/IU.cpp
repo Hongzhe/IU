@@ -11,32 +11,12 @@ using namespace std;
 
 int main()
 {
-	char buffer[1024];
-	ifstream in("c:/Users/hongzhe/documents/workfile.txt");
-	if (!in.is_open())
-	{
-		cout << "error opening file;";
-		exit(1);
-	}
-	char c = (char)in.get();
-	in.get();
-	in.unget();
-	c = (char)in.get();
-	cout << "read " << c << endl;
-	string str = "hehe";
-	str.append(1, 'x');
-	char ch = '4';
-	ch = '\n';
-	cout << "ch is " << ch << endl;
-	string em;
-	if (em.empty()) {
-		cout << "em is empty string." << endl;
-	}
-	cout << str << endl;
-
-	string newline = "a string \
-		with newline.";
-	cout << newline << endl;
+	Lexer iuLexer;
+	iuLexer.openFile("c:/Users/Hongzhe/Downloads/assign1/first.IU");
+	Token token = iuLexer.getToken();
+	token = iuLexer.getToken();
+	token = iuLexer.getToken();
+	cout << token.type << " " << token.lexem << endl;
     return 0;
 }
 

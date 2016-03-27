@@ -71,6 +71,7 @@ Token Lexer::getToken()
 {	
 	Token token;
 	STATE state = START_STATE;
+	int str_escapelevel = 0;
 	while (state != DONE_STATE) 
 	{
 		if (fin.eof()) {
@@ -90,7 +91,7 @@ Token Lexer::getToken()
 			else if (isupper(c)) {
 				state = TYPEID_STATE;
 				token.type = TK_TYPE_ID;
-				token.lexem = c;
+				token.lexem.append(1,c);
 			}
 			else if (isdigit(c)) {
 				state = NUM_STATE;
@@ -105,6 +106,7 @@ Token Lexer::getToken()
 				state = STR_STATE;
 				token.type = TK_STR_CONST;
 			}
+			break;
 		case OBJID_STATE:
 			if (isalpha(c) || isdigit(c) || c == '_') {
 				token.lexem.append(1, c);
@@ -167,19 +169,37 @@ Token Lexer::getToken()
 			}
 			break;
 		case STR_STATE:
+			str_escapelevel = 0;
 			if (c == '\"') {
-				state = DONE_STATE;
 				token.lexem.append(1, c);
+				state = DONE_STATE;
+			
 			}
-			else if (c == '\\') {
-
+			else if (c == '\\') { 
+				state = STR_ESCAPE_STATE;
+			}
+			else {
+				token.lexem.append(1, c);
 			}
 			break;
 		case STR_ESCAPE_STATE:
+			if (c == 'n' && str_escapelevel > 0 && (str_escapelevel+1) % 2 == 0) {
+				token.lexem.append(2, '\\\n');
+				state = STR_STATE;
+			}
+			else if (c == 'b' || c == 't' || c == 'f' || c == 'n') {
+				throw LexerException("Invalid escaped char.", lineno);
+			}
+			else if (c == '\\') {
+				state = STR_ESCAPE_STATE;
+			}
+			else {
+				token.lexem.append(1, c);
+				state = STR_STATE;
+			}
+			str_escapelevel++;
 			break;
 		}
-		
-
 	}
 	return token;
 }

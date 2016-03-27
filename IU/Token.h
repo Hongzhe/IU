@@ -17,6 +17,10 @@ enum Token_Type {
 struct Token {
 	Token_Type type;
 	std::string lexem;
+
+	void reset() {
+		lexem.clear();
+	}
 };
 
 class Lexer {
