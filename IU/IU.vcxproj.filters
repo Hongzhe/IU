@@ -27,6 +27,9 @@
     <ClInclude Include="Token.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="LexerException.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp">

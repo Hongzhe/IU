@@ -23,6 +23,20 @@ int main()
 	in.unget();
 	c = (char)in.get();
 	cout << "read " << c << endl;
+	string str = "hehe";
+	str.append(1, 'x');
+	char ch = '4';
+	ch = '\n';
+	cout << "ch is " << ch << endl;
+	string em;
+	if (em.empty()) {
+		cout << "em is empty string." << endl;
+	}
+	cout << str << endl;
+
+	string newline = "a string \
+		with newline.";
+	cout << newline << endl;
     return 0;
 }
 

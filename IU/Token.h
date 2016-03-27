@@ -8,6 +8,7 @@ enum Token_Type {
 	TK_TYPE_ID,
 	TK_INT,
 	TK_ASSIGN,
+	TK_CHAR,
 	TK_STR_CONST,
 	TK_INT_CONST,
 	TK_ERROR
@@ -33,5 +34,21 @@ public:
 	std::set<std::string> keywords;
 };
 
-
+enum STATE {
+	START_STATE,
+	NUM_STATE,
+	OBJID_STATE,
+	TYPEID_STATE,
+	GT_STATE,
+	GEQ_STATE,
+	LE_STATE,
+	LEQ_STATE,
+	EQ_STATE,
+	ASSIGN_STATE,
+	CHAR_STATE,
+	STR_STATE,
+	STR_ESCAPE_STATE,
+	EOF_STATE,
+	DONE_STATE,
+};
 
