@@ -69,23 +69,24 @@ bool isWitespace(char c)
 
 
 Token Lexer::getToken()
-{	
+{
 	Token token;
-	STATE state = START_STATE;
 	int str_escapelevel = 0;
-	while (state != DONE_STATE) 
+	state = START_STATE;
+	while (state != DONE_STATE)
 	{
-		if (fin.eof()) {
+		char c = nextChar();
+		if (c == EOF) {
+			//token.type = TK_EOF;
 			state = EOF_STATE;
-			token.type = TK_EOF;
 			break;
 		}
-		char c = (char)fin.get();
 		switch (state)
 		{
 		case START_STATE:
-			if(isWitespace(c)) {} //skip whitespace
-			if (islower(c)) {
+			if (isWitespace(c)) {
+			} 
+			else if (islower(c)) {
 				state = OBJID_STATE;
 				token.type = TK_OBJ_ID;
 				token.lexem = c;
@@ -93,7 +94,7 @@ Token Lexer::getToken()
 			else if (isupper(c)) {
 				state = TYPEID_STATE;
 				token.type = TK_TYPE_ID;
-				token.lexem.append(1,c);
+				token.lexem.append(1, c);
 			}
 			else if (isdigit(c)) {
 				state = NUM_STATE;
@@ -145,6 +146,11 @@ Token Lexer::getToken()
 				token.lexem = c;
 				state = DONE_STATE;
 			}
+			else if (c == '%') {
+				token.type = TK_MOD;
+				token.lexem = c;
+				state = DONE_STATE;
+			}
 			else if (c == '(') {
 				token.type = TK_LEFT_PRAN;
 				token.lexem = c;
@@ -167,6 +173,11 @@ Token Lexer::getToken()
 			}
 			else if (c == '.') {
 				token.type = TK_DOT;
+				token.lexem = c;
+				state = DONE_STATE;
+			}
+			else if (c == '!') {
+				token.type = TK_NOT;
 				token.lexem = c;
 				state = DONE_STATE;
 			}
@@ -237,9 +248,9 @@ Token Lexer::getToken()
 			if (c == '\"') {
 				token.lexem.append(1, c);
 				state = DONE_STATE;
-			
+
 			}
-			else if (c == '\\') { 
+			else if (c == '\\') {
 				state = STR_ESCAPE_STATE;
 			}
 			else {
@@ -247,9 +258,9 @@ Token Lexer::getToken()
 			}
 			break;
 		case STR_ESCAPE_STATE:
-			if (c == '\"' && str_escapelevel > 0 && (str_escapelevel+1) % 2 == 0) {
+			if (c == '\"' && str_escapelevel > 0 && (str_escapelevel + 1) % 2 == 0) {
 				state = DONE_STATE;
-			} 
+			}
 			else if (c == '\\') {
 				if (str_escapelevel == 0 || str_escapelevel % 2 != 0) {
 					token.lexem.append(1, c);
@@ -258,6 +269,7 @@ Token Lexer::getToken()
 			}
 			else if (c == '\n' &&  str_escapelevel % 2 == 0) {
 				token.lexem.append(1, c);
+				lineno++;
 				state = STR_STATE;
 			}
 			else if (c == '\b' || c == '\t' || c == '\f' || c == '\n') {
@@ -273,11 +285,12 @@ Token Lexer::getToken()
 			if (c == '=') {
 				token.type = TK_EQ;
 				token.lexem.append(1, c);
+				state = DONE_STATE;
 			}
 			else {
 				putBack();
+				state = START_STATE;
 			}
-			state = DONE_STATE;
 			break;
 		case GT_STATE:
 			if (c == '=') {
@@ -338,6 +351,8 @@ Token Lexer::getToken()
 			}
 		}
 	}
-	
+	if (state == EOF_STATE && (token.type == TK_STR_CONST || token.type == TK_CHAR)) {
+		throw LexerException("Undetermined token.", lineno);
+	}
 	return token;
 }

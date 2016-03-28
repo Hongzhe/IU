@@ -8,7 +8,4 @@ public:
 	LexerException(const std::string& s, unsigned line):
 	std::runtime_error(s),lineno(line){}
 	unsigned lineno;
-	const char* what() {
-		
-	}
 };

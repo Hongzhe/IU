@@ -4,7 +4,8 @@
 #include <set>
 
 enum Token_Type {
-	TK_OBJ_ID = 258,
+	TK_INIT = 258,
+	TK_OBJ_ID,
 	TK_TYPE_ID,
 	TK_INT,
 	TK_ASSIGN,
@@ -22,6 +23,7 @@ enum Token_Type {
 	TK_COMMENT,
 	TK_ADD,
 	TK_MINUS,
+	TK_MOD,
 	TK_RETURN,
 	TK_KEYWORD,
 	TK_EOF,
@@ -29,31 +31,8 @@ enum Token_Type {
 	TK_LEFT_PRAN,
 	TK_RIGHT_BRAC,
 	TK_LEFT_BRAC,
-	TK_DOT
-};
-
-struct Token {
-	Token_Type type;
-	std::string lexem;
-
-	void reset() {
-		lexem.clear();
-	}
-};
-
-class Lexer {
-private:
-	unsigned lineno;
-	std::ifstream fin;
-	char nextChar();
-	void putBack();
-	void init_keyword();
-public:
-	Lexer();
-	Token getToken();
-	void openFile(std::string file);
-	void closeFile();
-	std::set<std::string> keywords;
+	TK_DOT,
+	TK_NOT,
 };
 
 enum STATE {
@@ -76,4 +55,31 @@ enum STATE {
 	ONELINE_COMMENT_STATE,
 	MULTILINE_COMMENT_STATE,
 };
+
+
+struct Token {
+	Token_Type type = TK_INIT;
+	std::string lexem;
+
+	void reset() {
+		lexem.clear();
+	}
+};
+
+class Lexer {
+private:
+	unsigned lineno;
+	std::ifstream fin;
+	char nextChar();
+	void putBack();
+	void init_keyword();
+public:
+	Lexer();
+	Token getToken();
+	void openFile(std::string file);
+	void closeFile();
+	std::set<std::string> keywords;
+	STATE state;
+};
+
 
