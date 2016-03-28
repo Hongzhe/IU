@@ -247,15 +247,21 @@ Token Lexer::getToken()
 			}
 			break;
 		case STR_ESCAPE_STATE:
-			if (c == 'n' && str_escapelevel > 0 && (str_escapelevel+1) % 2 == 0) {
-				token.lexem.append(2, '\\\n');
+			if (c == '\"' && str_escapelevel > 0 && (str_escapelevel+1) % 2 == 0) {
+				state = DONE_STATE;
+			} 
+			else if (c == '\\') {
+				if (str_escapelevel == 0 || str_escapelevel % 2 != 0) {
+					token.lexem.append(1, c);
+				}
+				state = STR_ESCAPE_STATE;
+			}
+			else if (c == '\n' &&  str_escapelevel % 2 == 0) {
+				token.lexem.append(1, c);
 				state = STR_STATE;
 			}
-			else if (c == 'b' || c == 't' || c == 'f' || c == 'n') {
+			else if (c == '\b' || c == '\t' || c == '\f' || c == '\n') {
 				throw LexerException("Invalid escaped char.", lineno);
-			}
-			else if (c == '\\') {
-				state = STR_ESCAPE_STATE;
 			}
 			else {
 				token.lexem.append(1, c);
@@ -331,7 +337,7 @@ Token Lexer::getToken()
 				token.type = TK_KEYWORD;
 			}
 		}
-		
 	}
+	
 	return token;
 }
