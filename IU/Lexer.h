@@ -80,6 +80,7 @@ public:
 	void closeFile();
 	std::set<std::string> keywords;
 	STATE state;
+	unsigned getLineno() { return lineno; }
 };
 
 

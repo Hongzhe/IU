@@ -145,14 +145,19 @@
     <Text Include="ReadMe.txt" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Error.h" />
+    <ClInclude Include="ParserException.h" />
+    <ClInclude Include="SyntaxTree.h" />
     <ClInclude Include="LexerException.h" />
+    <ClInclude Include="Parser.h" />
     <ClInclude Include="stdafx.h" />
     <ClInclude Include="targetver.h" />
-    <ClInclude Include="Token.h" />
+    <ClInclude Include="Lexer.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="IU.cpp" />
     <ClCompile Include="Lexer.cpp" />
+    <ClCompile Include="Parser.cpp" />
     <ClCompile Include="stdafx.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>

@@ -1,5 +1,5 @@
 #include "stdafx.h"
-#include "Token.h"
+#include "Lexer.h"
 #include <fstream>
 #include <iostream>
 #include <cctype>
@@ -25,6 +25,8 @@ void Lexer::init_keyword() {
 	keywords.insert("false");
 	keywords.insert("void");
 	keywords.insert("return");
+	keywords.insert("break");
+	keywords.insert("continue");
 }
 
 void Lexer::openFile(string filename)
@@ -59,6 +61,7 @@ void Lexer::putBack()
 {
 	fin.unget();
 }
+
 bool isWitespace(char c)
 {
 	if (c == ' ' || c == '\t' || c == '\b' || c =='\r'
