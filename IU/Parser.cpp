@@ -19,7 +19,7 @@ void Parser::parse()
 
 
 //class Name { features; }
-void Parser::parse_class()
+ClassTreeNode* Parser::parse_class()
 {
 	shared_ptr<TreeNode> node = make_shared<TreeNode>();
 	token = lexer.getToken();
@@ -48,17 +48,19 @@ void Parser::parse_class()
 	if (lexer.state == EOF_STATE || token.type != TK_RIGHT_BRAC) {
 		syntax_error("}", token, lexer);
 	}
+	return node;
 }
 
 
 void Parser::parse_features()
 {
-	parse_fields();
+	parse_declaration();
 	parse_methods();
 }
 
-void Parser::parse_fields() 
+void Parser::parse_declaration()
 {
+
 }
 
 void Parser::parse_methods() 

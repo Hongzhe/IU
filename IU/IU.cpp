@@ -12,17 +12,12 @@ using namespace std;
 
 int main()
 {
-	/*Lexer iuLexer;
+	Lexer iuLexer;
 	iuLexer.openFile("c:/code/IU/test/operator.IU");
-	Token token;*/
+	Token token;
 
-	if (1 == 0 || 3 < 4) {
-		cout << "false" << endl;
-	}
-	else {
-		cout << "true" << endl;
-	}
-	/*try {
+	
+	try {
 		while (iuLexer.state != EOF_STATE) {
 			token = iuLexer.getToken();
 			if(token.type != TK_INIT)
@@ -33,7 +28,7 @@ int main()
 		cout << "catch a exception " << endl;
 		cout <<"At line " << e.lineno << " " <<e.what() << endl;
 		cout << token.lexem << endl;
-	}*/
+	}
 
 
 	

@@ -13,12 +13,12 @@ private:
 		return false;
 	}
 public:
-	Parser() {}
 	Token token;
+	Parser() {}
 	void parse();
-	void parse_class();
+	ClassTreeNode* parse_class();
 	void parse_features();
-	void parse_fields();
+	void parse_declaration();
 	void parse_methods();
 };
 
