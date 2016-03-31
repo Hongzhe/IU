@@ -62,6 +62,11 @@ void Lexer::putBack()
 	fin.unget();
 }
 
+void Lexer::unget()
+{
+	fin.unget();
+}
+
 bool isWitespace(char c)
 {
 	if (c == ' ' || c == '\t' || c == '\b' || c =='\r'
@@ -191,7 +196,7 @@ Token Lexer::getToken()
 			}
 			else {
 				state = DONE_STATE;
-				putBack();
+				unget();
 			}
 			break;
 		case TYPEID_STATE:
@@ -200,7 +205,7 @@ Token Lexer::getToken()
 			}
 			else {
 				state = DONE_STATE;
-				putBack();
+				unget();
 			}
 			break;
 		case NUM_STATE:

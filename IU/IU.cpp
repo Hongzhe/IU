@@ -16,7 +16,12 @@ int main()
 	iuLexer.openFile("c:/code/IU/test/operator.IU");
 	Token token;
 
-	
+	if ( 1 < 3 == 0+1) {
+		cout << "false " << endl;
+	}
+	else {
+		cout << "true " << endl;
+	}
 	try {
 		while (iuLexer.state != EOF_STATE) {
 			token = iuLexer.getToken();

@@ -76,6 +76,7 @@ private:
 public:
 	Lexer();
 	Token getToken();
+	void unget();
 	void openFile(std::string file);
 	void closeFile();
 	std::set<std::string> keywords;

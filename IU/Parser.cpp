@@ -19,9 +19,9 @@ void Parser::parse()
 
 
 //class Name { features; }
-ClassTreeNode* Parser::parse_class()
+std::shared_ptr<ClassTreeNode> Parser::parse_class()
 {
-	shared_ptr<TreeNode> node = make_shared<TreeNode>();
+	shared_ptr<ClassTreeNode> node = make_shared<ClassTreeNode>();
 	token = lexer.getToken();
 	if (lexer.state == EOF_STATE || token.lexem.compare("class") != 0) {
 		syntax_error("class", token, lexer);
@@ -66,4 +66,26 @@ void Parser::parse_declaration()
 void Parser::parse_methods() 
 {
 
+}
+
+void Parser::parse_expression()
+{
+	token = lexer.getToken();
+	if (token.type == TK_TYPE_ID) {
+		string type = token.lexem;
+		token = lexer.getToken();
+		if (token.type == TK_OBJ_ID) {
+			string id = token.lexem;
+		}
+		else {
+			syntax_error("object identifier", token, lexer);
+		}
+		token = lexer.getToken();
+		if (token.type == TK_EQ) {
+			//parse expression;
+		}
+		else {
+			lexer.unget();
+		}
+	}
 }

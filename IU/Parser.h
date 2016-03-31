@@ -1,6 +1,7 @@
 #include "Lexer.h"
+#include "SyntaxTree.h"
 #include <string>
-
+#include <memory>
 
 class Parser {
 private:
@@ -16,9 +17,10 @@ public:
 	Token token;
 	Parser() {}
 	void parse();
-	ClassTreeNode* parse_class();
+	std::shared_ptr<ClassTreeNode> parse_class();
 	void parse_features();
 	void parse_declaration();
 	void parse_methods();
+	void parse_expression();
 };
 

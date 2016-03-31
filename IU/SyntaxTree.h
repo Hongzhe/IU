@@ -6,14 +6,32 @@
 
 class TreeNode {
 public:
-	TreeNode(){}
+	TreeNode() {}
 	std::string name;
+};
+
+class ExpressionNode : public TreeNode {
+	
+};
+
+class InfixExpressionNode : public TreeNode {
+public:
+	std::string op;
+	std::shared_ptr<ExpressionNode> leftval;
+	std::shared_ptr<ExpressionNode> rightval;
 };
 
 class LiteralTreeNode : TreeNode
 {
 public:
 	std::string content;
+};
+
+class DeclarationNode :TreeNode
+{
+public:
+	std::string type_id;
+	//init value;
 };
 
 class NumericNode : TreeNode
@@ -56,12 +74,7 @@ class IfStatementNode :TreeNode
 	//else
 };
 
-class DeclarationNode :TreeNode
-{
-public:
-	std::string type_id;
-	//init value;
-};
+
 
 class MethodNode :TreeNode 
 {
@@ -71,7 +84,7 @@ public:
 	std::vector<DeclarationNode> fields;
 };
 
-class ClassTreeNode : TreeNode 
+class ClassTreeNode : public TreeNode 
 {
 
 };
