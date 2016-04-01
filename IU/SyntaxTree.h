@@ -4,28 +4,32 @@
 #include <memory>
 #include <vector>
 
+enum TreeNodeType {
+	LITERAL_NODE,
+	METHOD_INVOCATION_NODE,
+	TERM_EXP_NODE,
+	ARITHMETIC_EXP_NODE,
+	BOOLEAN_NODE,
+	TYPE_CREATOR_NODE,
+};
+
+
 class TreeNode {
 public:
 	TreeNode() {}
-	std::string name;
-};
-
-class ExpressionNode : public TreeNode {
-	
-};
-
-class InfixExpressionNode : public TreeNode {
-public:
-	std::string op;
-	std::shared_ptr<ExpressionNode> leftval;
-	std::shared_ptr<ExpressionNode> rightval;
-};
-
-class LiteralTreeNode : TreeNode
-{
-public:
+	TreeNode(TreeNodeType type) : type(type) {}
+	TreeNodeType type;
 	std::string content;
 };
+
+class ExpressionTreeNode : public TreeNode {
+public:
+	ExpressionTreeNode(TreeNodeType type): TreeNode(type){}
+	std::shared_ptr<ExpressionTreeNode> left = nullptr;
+	std::shared_ptr<ExpressionTreeNode> right = nullptr;
+	std::string op;
+};
+
 
 class DeclarationNode :TreeNode
 {
@@ -34,17 +38,7 @@ public:
 	//init value;
 };
 
-class NumericNode : TreeNode
-{
-public:
-	std::string content;
-};
 
-class identifierNode : TreeNode
-{
-public:
-	std::string content;
-};
 
 class MethodInvocationNode : TreeNode
 {
