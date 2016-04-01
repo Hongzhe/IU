@@ -51,19 +51,6 @@ std::shared_ptr<ClassTreeNode> Parser::parse_class()
 	return node;
 }
 
-void Parser::parse_arithmetic_expression() {
-	
-}
-void Parser::parse_relation_expression()
-{
-
-}
-void Parser::parse_term() {
-	//left val
-	parse_primary();
-	//if(not primary) {}
-}
-
 shared_ptr<ExpressionTreeNode> Parser::parse_primary() {
 
 	shared_ptr<ExpressionTreeNode> node;
@@ -149,13 +136,28 @@ shared_ptr<ExpressionTreeNode> Parser::parse_creator()
 	return node;
 }
 
+shared_ptr<ExpressionTreeNode> Parser::parse_term() {
+
+	shared_ptr<ExpressionTreeNode> lval = parse_primary();
+	if (!lval) {
+		lval = parse_expression();
+
+	}
+}
+
+std::shared_ptr<ExpressionTreeNode> Parser::parse_arithmetic_expression()
+{
+	
+}
+
+std::shared_ptr<ExpressionTreeNode> Parser::parse_relation_expression()
+{
+	token = lexer.getToken();
+
+}
+
 shared_ptr<ExpressionTreeNode> Parser::parse_expression()
 {
-	//parse_expression()
-	token = lexer.getToken();
-	while (isEqual(token.lexem,",")) {
-		//parse_expression()
-		token = lexer.getToken();
-	}
-	lexer.unget();
+	shared_ptr<ExpressionTreeNode> node;
+	shared_ptr<ExpressionTreeNode> lval = parse_relation_expression();
 }
