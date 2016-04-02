@@ -21,6 +21,18 @@ public:
 	void prepare(std::string filename);
 
 	std::shared_ptr<ClassTreeNode> parse_class();
+	
+	std::shared_ptr<FeatureTreeNode> parse_feature();
+
+	std::shared_ptr<FeatureTreeNode> parse_statements();
+
+	std::shared_ptr<ConditionStatementNode> parse_if_statement();
+
+	std::shared_ptr<ConditionStatementNode> parse_while_statement();
+	
+	std::shared_ptr<ExpressionTreeNode> parse_pran_expression();
+
+	std::shared_ptr<ExpressionTreeNode> parse_arguments();
 
 	std::shared_ptr<ExpressionTreeNode> parse_primary();
 

@@ -20,38 +20,135 @@ void Parser::parse()
 
 
 //class Name { features; }
-std::shared_ptr<ClassTreeNode> Parser::parse_class()
+shared_ptr<ClassTreeNode> Parser::parse_class()
 {
-	shared_ptr<ClassTreeNode> node = make_shared<ClassTreeNode>();
-	token = lexer.getToken();
-	if (lexer.state == EOF_STATE || token.lexem.compare("class") != 0) {
-		syntax_error("class", token, lexer);
-	}
-	token = lexer.getToken();
-	if (lexer.state == EOF_STATE || token.type != TK_TYPE_ID) {
-		syntax_error("TYPE_ID", token, lexer);
-	}
-	node->content = token.lexem;
-	token = lexer.getToken();
-	if (isEqual(token.lexem, "inherits")) {
-		token = lexer.getToken();
-		if (token.type != TK_TYPE_ID) {
-			syntax_error("TYPE_ID", token, lexer);
+	auto node = make_shared<ClassTreeNode>();
+	vector<shared_ptr<FeatureTreeNode>> features;
+	while (true) {
+		shared_ptr<FeatureTreeNode> feature = parse_feature();
+		if (!feature) {
+			break;
 		}
-	}
-
-	if (lexer.state == EOF_STATE || token.type != TK_LEFT_BRAC) {
-		syntax_error("{", token, lexer);
-	}
-	//parse_features();
-
-	token = lexer.getToken(); 
-	if (lexer.state == EOF_STATE || token.type != TK_RIGHT_BRAC) {
-		syntax_error("}", token, lexer);
+		features.push_back(feature);
 	}
 	return node;
 }
 
+shared_ptr<FeatureTreeNode> Parser::parse_feature()
+{
+	auto node = make_shared<FeatureTreeNode>();
+	token = lexer.getToken();
+	if (token.type != TK_TYPE_ID && token.lexem != "void") {
+		//parse constructor
+		//otherwise return error
+	}
+	else {
+		token = lexer.getToken();
+		if (token.type != TK_OBJ_ID) {
+			syntax_error("id", token, lexer);
+		}
+		node->content = token.lexem;
+		token = lexer.getToken();
+		if (token.type == TK_LEFT_PRAN) {
+			//parse arguments;
+			token = lexer.getToken();
+			if (token.type != TK_RIGHT_PRAN) {
+				syntax_error(")", token, lexer);
+				node = nullptr;
+			}
+			//parse block;
+			node->type = MEMBER_METHOD_NDOE;
+		}
+		else if (token.type == TK_EQ) {
+			node->type = FIELD_NODE;
+			shared_ptr<ExpressionTreeNode> val = parse_expression();
+			auto declarator = make_shared<DeclarationNode>();
+			declarator->content = node->content;
+			declarator->init = val;
+			node->declaration = declarator;
+		}
+	}
+	return node;
+}
+
+shared_ptr<FeatureTreeNode> Parser::parse_statements()
+{
+	//parse_while;
+	//parse_if;
+	//parse_statement;
+}
+
+
+shared_ptr<ConditionStatementNode> Parser::parse_while_statement()
+{
+	auto node = make_shared<ConditionStatementNode>();
+	token = lexer.getToken();
+	if (token.lexem == "while") {
+		auto condition = parse_pran_expression();
+		if(!condition) {
+			return nullptr;
+		}
+		node->condition = condition;
+		auto body = parse_statements();
+		if (!body) {
+			return nullptr;
+		}
+		node->body = body;
+	}
+	else {
+		lexer.unget();
+		node = nullptr;
+	}
+	return node;
+}
+
+shared_ptr<ConditionStatementNode> Parser::parse_if_statement()
+{
+	auto node = make_shared<ConditionStatementNode>();
+	token = lexer.getToken();
+	if (token.lexem == "if") {
+		auto condition = parse_pran_expression();
+		if (!condition) return nullptr;
+		node->condition = condition;
+		auto body = parse_statements();
+		if (!body) {
+			return nullptr;
+		}
+		node->body = body;
+		token = lexer.getToken();
+		if (token.lexem == "else") {
+			auto elsebody = parse_statements();
+			node->elsebody = elsebody;
+		}
+		else {
+			lexer.unget();
+		}
+	}
+	else {
+		lexer.unget();
+		node = nullptr;
+	}
+	return node;
+}
+
+std::shared_ptr<ExpressionTreeNode> Parser::parse_pran_expression() 
+{
+	shared_ptr<ExpressionTreeNode> node;
+	token = lexer.getToken();
+	if (token.type != TK_LEFT_PRAN) {
+		lexer.unget();
+		syntax_error("(", token, lexer);
+		node = nullptr;
+	}
+	node = parse_expression();
+	token = lexer.getToken();
+	if (token.type != TK_RIGHT_PRAN) {
+		lexer.unget();
+		syntax_error(")", token, lexer);
+		node = nullptr;
+	}
+	return node;
+}
 
 //basic element of a expression
 shared_ptr<ExpressionTreeNode> Parser::parse_primary() {
@@ -101,18 +198,43 @@ shared_ptr<ExpressionTreeNode> Parser::parse_primary() {
 	return node;
 }
 
+std::shared_ptr<ExpressionTreeNode> Parser::parse_arguments()
+{
+	auto node = make_shared<ExpressionTreeNode>(ARGUMENTS_NODE);
+	auto first = parse_expression();
+	node->left = first;
+	auto tmp = node->left;
+	if (first) {
+		while (true) {
+			token = lexer.getToken();
+			if (token.type != TK_COMMA) {
+				lexer.unget();
+				break;
+			}
+			auto next = parse_expression();
+			if (!next) {
+				syntax_error("expression", token, lexer);
+				break;
+			}
+			tmp->left = next;
+			tmp = next;
+		}
+	}
+	return node;
+}
 
 shared_ptr<ExpressionTreeNode> Parser::parse_method_invocation()
 {
-	shared_ptr<ExpressionTreeNode> node;
+	shared_ptr<ExpressionTreeNode> node = make_shared<ExpressionTreeNode>(METHOD_INVOCATION_NODE);
 	token = lexer.getToken();
 	node->content = token.lexem; //method name
 	token = lexer.getToken(); // '('
-	shared_ptr<ExpressionTreeNode> paramters = parse_expression();
+	shared_ptr<ExpressionTreeNode> paramters = parse_arguments();
 	token = lexer.getToken();
 	if (token.type != TK_RIGHT_BRAC) {
 		syntax_error(")", token, lexer);
 		node = nullptr;
+		lexer.unget();
 	}
 	else {
 		node->left = paramters;
@@ -128,17 +250,19 @@ shared_ptr<ExpressionTreeNode> Parser::parse_creator()
 	node->content = token.lexem;
 	token = lexer.getToken();
 	if (token.type == TK_LEFT_PRAN) {
-		shared_ptr<ExpressionTreeNode> parameters = parse_expression();
+		shared_ptr<ExpressionTreeNode> parameters = parse_arguments();
 		token = lexer.getToken();
 		if (token.type != TK_RIGHT_PRAN) {
 			syntax_error(")", token, lexer);
 			node = nullptr;
+			lexer.unget();
 		}
 		node->left = parameters;
 	}
 	else {
 		syntax_error("(", token, lexer);
 		node = nullptr;
+		lexer.unget();
 	}
 	return node;
 }

@@ -33,6 +33,7 @@ enum Token_Type {
 	TK_LEFT_BRAC,
 	TK_DOT,
 	TK_NOT,
+	TK_COMMA,
 };
 
 enum STATE {

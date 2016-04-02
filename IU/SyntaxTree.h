@@ -13,7 +13,12 @@ enum TreeNodeType {
 	RELATION_EXP_NODE,
 	BOOLEAN_NODE,
 	TYPE_CREATOR_NODE,
+	ARGUMENTS_NODE,
 	EXPRESSION_NODE,
+	FIELD_DECLARATOR_NODE,
+	FIELD_NODE,
+	MEMBER_METHOD_NDOE,
+	CONSTRUCTOR_NODE
 };
 
 
@@ -33,29 +38,8 @@ public:
 	std::string op;
 };
 
+class StatamentNode : TreeNode {
 
-class DeclarationNode :TreeNode
-{
-public:
-	std::string type_id;
-	//init value;
-};
-
-
-
-class MethodInvocationNode : TreeNode
-{
-public:
-	bool isParent;
-	std::vector<DeclarationNode> params;
-};
-
-class InfixStatmentExp : TreeNode
-{
-public:
-	std::string op;
-	//left val   val could be a expression
-	//right val
 };
 
 class WhileStatementNode : TreeNode
@@ -70,18 +54,40 @@ class IfStatementNode :TreeNode
 	//block
 	//else
 };
-
-
-
-class MethodNode :TreeNode 
+class StatementNode : public TreeNode
 {
 public:
-	std::string returntype;
-	//params
-	std::vector<DeclarationNode> fields;
+	std::shared_ptr<TreeNode> next;
+};
+
+class ConditionStatementNode : public TreeNode
+{
+public:
+	std::shared_ptr<ExpressionTreeNode> condition;
+	std::shared_ptr<StatamentNode> body;
+	std::shared_ptr<StatementNode> elsebody;
+};
+
+class DeclarationNode : public TreeNode
+{
+public:
+	DeclarationNode() { type = FIELD_DECLARATOR_NODE; }
+	std::string type_id;
+	shared_ptr<ExpressionTreeNode> init;
+};
+
+class FeatureTreeNode : public TreeNode
+{
+public:
+	std::shared_ptr<DeclarationNode> declaration;
+	std::vector<std::string> parameter_types;
+	std::vector<std::string> parameter_id;
 };
 
 class ClassTreeNode : public TreeNode 
 {
-
+public:
+	std::string id;
+	std::string parent;
+	std::vector<FeatureTreeNode> features;
 };
