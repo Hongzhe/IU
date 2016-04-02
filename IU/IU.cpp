@@ -7,22 +7,21 @@
 #include "Lexer.h"
 #include <fstream>
 #include "LexerException.h"
+#include "Parser.h"
 
 using namespace std;
 
 int main()
 {
 	Lexer iuLexer;
-	iuLexer.openFile("c:/code/IU/test/operator.IU");
+	//iuLexer.openFile("c:/code/IU/test/operator.IU");
 	Token token;
-
-	if ( 1 < 3 == 0+1) {
-		cout << "false " << endl;
-	}
-	else {
-		cout << "true " << endl;
-	}
-	try {
+	//iuLexer.openFile("c:/code/IU/test/exp_test.IU");
+	Parser parser;
+	parser.prepare("c:/code/IU/test/exp_test.IU");
+	shared_ptr<ExpressionTreeNode> root = parser.parse_expression();
+	parser.print_expression(root->left);
+	/*try {
 		while (iuLexer.state != EOF_STATE) {
 			token = iuLexer.getToken();
 			if(token.type != TK_INIT)
@@ -33,7 +32,7 @@ int main()
 		cout << "catch a exception " << endl;
 		cout <<"At line " << e.lineno << " " <<e.what() << endl;
 		cout << token.lexem << endl;
-	}
+	}*/
 
 
 	

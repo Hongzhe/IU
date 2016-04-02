@@ -7,5 +7,5 @@
 
 
 void syntax_error(std::string expect, Token token, Lexer& lexer) {
-	std::cerr << "Syntax error at line " << lexer.getLineno() << "expect " << expect << " but get a" << token.lexem;
+	std::cerr << "Syntax error at line " << lexer.getLineno() << " expect " << expect << " but get a" << token.lexem;
 }

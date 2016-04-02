@@ -5,6 +5,7 @@
 #include "SyntaxTree.h"
 #include "Error.h"
 #include <memory>
+#include <iostream>
 
 using namespace std;
 
@@ -51,11 +52,13 @@ std::shared_ptr<ClassTreeNode> Parser::parse_class()
 	return node;
 }
 
-shared_ptr<ExpressionTreeNode> Parser::parse_primary() {
 
+//basic element of a expression
+shared_ptr<ExpressionTreeNode> Parser::parse_primary() {
 	shared_ptr<ExpressionTreeNode> node;
 	token = lexer.getToken();
-	if (token.type == TK_LEFT_PRAN) {
+	if (token.type == TK_LEFT_PRAN) { //PAR_EXPRESSION
+		node = make_shared<ExpressionTreeNode>(EXPRESSION_NODE);
 		shared_ptr<ExpressionTreeNode> exp = parse_expression();
 		token = lexer.getToken();
 		if (token.type != TK_RIGHT_PRAN) {
@@ -65,11 +68,11 @@ shared_ptr<ExpressionTreeNode> Parser::parse_primary() {
 		}
 		node->left = exp;
 	}
-	else if (token.type == TK_STR_CONST) {
+	else if (token.type == TK_STR_CONST) { 
 		node = make_shared<ExpressionTreeNode>(LITERAL_NODE);
 		node->content = token.lexem;
 	}
-	else if (token.type == TK_INT_CONST) {
+	else if (token.type == TK_INT) {
 		node = make_shared<ExpressionTreeNode>(LITERAL_NODE);
 		node->content = token.lexem;
 	}
@@ -78,12 +81,16 @@ shared_ptr<ExpressionTreeNode> Parser::parse_primary() {
 		node->content = token.lexem;
 	}
 	else if (token.type == TK_OBJ_ID) {
+		node->content = token.lexem;
 		token = lexer.getToken();
 		if (token.type == TK_LEFT_PRAN) { //method Invocation
 			lexer.unget();
 			lexer.unget();
 			shared_ptr<ExpressionTreeNode> val = parse_method_invocation();
 			node->left = val;
+		}
+		else {
+			lexer.unget();
 		}
 	}
 	else if (token.type == TK_KEYWORD && isEqual(token.lexem, "new")) {
@@ -136,28 +143,74 @@ shared_ptr<ExpressionTreeNode> Parser::parse_creator()
 	return node;
 }
 
-shared_ptr<ExpressionTreeNode> Parser::parse_term() {
-
-	shared_ptr<ExpressionTreeNode> lval = parse_primary();
-	if (!lval) {
-		lval = parse_expression();
-
-	}
-}
-
+//exp [* / % exp]
 std::shared_ptr<ExpressionTreeNode> Parser::parse_arithmetic_expression()
 {
+	shared_ptr<ExpressionTreeNode> node = make_shared<ExpressionTreeNode>(ARITHMETIC_EXP_NODE);
+	shared_ptr<ExpressionTreeNode> lval = parse_primary();
+	node->left = lval;
+	while (true) {
+		token = lexer.getToken();
+		if (token.type == TK_MULTIPLY || token.type == TK_DIVID || token.type == TK_MOD) {
+			node->op = token.lexem;
+			auto rval = parse_arithmetic_expression();
+			if (rval == nullptr) {
+				syntax_error("expression", token, lexer);
+			}
+			node->right = rval;
+		}
+		else {
+			lexer.unget();
+			break;
+		}
+	}
 	
+	return node;
 }
 
+// exp [+, - = exp]
 std::shared_ptr<ExpressionTreeNode> Parser::parse_relation_expression()
 {
-	token = lexer.getToken();
-
+	shared_ptr<ExpressionTreeNode> node = make_shared<ExpressionTreeNode>(RELATION_EXP_NODE);
+	shared_ptr<ExpressionTreeNode> lval = parse_arithmetic_expression();
+	node->left = lval;
+	while (true) {
+		token = lexer.getToken();
+		if (token.type == TK_ADD || token.type == TK_MINUS || token.type == TK_EQ) {
+			node->op = token.lexem;
+			shared_ptr<ExpressionTreeNode> rval = parse_relation_expression();
+			if (rval == nullptr) {
+				syntax_error("expression", token, lexer); // token
+			}
+			node->right = rval;
+		}
+		else {
+			lexer.unget();
+			break;
+		}
+	}
+	
+	return node;
 }
 
 shared_ptr<ExpressionTreeNode> Parser::parse_expression()
 {
-	shared_ptr<ExpressionTreeNode> node;
+	shared_ptr<ExpressionTreeNode> node = make_shared<ExpressionTreeNode>(EXPRESSION_NODE);
 	shared_ptr<ExpressionTreeNode> lval = parse_relation_expression();
+	node->left = lval;
+	return node;
+}
+
+
+void Parser::print_expression(shared_ptr<ExpressionTreeNode> root)
+{
+	if (!root) return;
+	if (!root->op.empty()) {
+		cout << root->op << " ";
+	}
+	if (root->type == LITERAL_NODE) {
+		cout << root->content << " ";
+	}
+	print_expression(root->left);
+	print_expression(root->right);
 }
