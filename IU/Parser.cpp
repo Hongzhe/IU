@@ -1,7 +1,6 @@
 #include "stdafx.h"
 #include "Lexer.h"
 #include "Parser.h"
-#include "ParserException.h"
 #include "SyntaxTree.h"
 #include "Error.h"
 #include <memory>
@@ -39,27 +38,60 @@ shared_ptr<FeatureTreeNode> Parser::parse_feature()
 	auto node = make_shared<FeatureTreeNode>();
 	token = lexer.getToken();
 	if (token.type != TK_TYPE_ID && token.lexem != "void") {
-		//parse constructor
-		//otherwise return error
+		if (token.type != TK_OBJ_ID) { //parse class constructor
+			syntax_error("object id", token, lexer);
+			return nullptr;
+		}
+		node->content = token.lexem;
+		token = lexer.getToken();
+		if (token.type != TK_LEFT_PRAN) {
+			lexer.unget();
+			syntax_error("(", token, lexer);
+			return nullptr;
+		}
+		token = lexer.getToken();
+		if (token.type == TK_RIGHT_PRAN) {
+			return node; //no parameters
+		}
+		lexer.unget();
+		auto parameters = parse_parameters();
+		if (!parameters) return nullptr;
+		token = lexer.getToken();
+		if (token.type != TK_RIGHT_PRAN) {
+			lexer.unget();
+			syntax_error(")", token, lexer);
+			return nullptr;
+		}
+		return node;
 	}
-	else {
+	else if (token.type == TK_TYPE_ID || token.lexem == "void") {
 		token = lexer.getToken();
 		if (token.type != TK_OBJ_ID) {
 			syntax_error("id", token, lexer);
 		}
 		node->content = token.lexem;
 		token = lexer.getToken();
-		if (token.type == TK_LEFT_PRAN) {
-			//parse arguments;
+		if (token.type == TK_LEFT_PRAN) { //method
+			token = lexer.getToken();
+			if (token.type == TK_RIGHT_PRAN) {
+				return node; //no parameters
+			}
+			lexer.unget();
+			auto parameters = parse_parameters();
+			if (!parameters) {
+				return nullptr;
+			}
+			node->parameters = parameters;
 			token = lexer.getToken();
 			if (token.type != TK_RIGHT_PRAN) {
 				syntax_error(")", token, lexer);
 				node = nullptr;
 			}
-			//parse block;
 			node->type = MEMBER_METHOD_NDOE;
+			shared_ptr<StatementNode> statements = parse_statements();
+			node->statements = statements;
 		}
-		else if (token.type == TK_EQ) {
+		else if (token.type == TK_EQ) { //assignment
 			node->type = FIELD_NODE;
 			shared_ptr<ExpressionTreeNode> val = parse_expression();
 			auto declarator = make_shared<DeclarationNode>();
@@ -71,11 +103,54 @@ shared_ptr<FeatureTreeNode> Parser::parse_feature()
 	return node;
 }
 
-shared_ptr<FeatureTreeNode> Parser::parse_statements()
+shared_ptr<DeclarationNode> Parser::parse_parameters()
 {
-	//parse_while;
-	//parse_if;
-	//parse_statement;
+	auto node = make_shared<DeclarationNode>();
+	token = lexer.getToken();
+	if (token.type != TK_TYPE_ID) {
+		lexer.unget();
+		syntax_error("TYPE ID", token, lexer);
+		return nullptr;
+	}
+	node->type_id = token.lexem;
+	token = lexer.getToken();
+	if (token.type != TK_OBJ_ID) {
+		lexer.unget();
+		syntax_error("OBJECT ID", token, lexer);
+		return nullptr;
+	}
+	node->content = token.lexem;
+	while (true) {
+		token = lexer.getToken();
+		if (token.type != TK_COMMA) {
+			lexer.unget();
+			break;
+		}
+		auto n = parse_parameters();
+		if (!n) break;
+		node->next = n;
+	}
+	return node;
+}
+
+shared_ptr<StatementNode> Parser::parse_statements()
+{
+	shared_ptr<StatementNode> node = make_shared<StatementNode>();
+	while (true) {
+		shared_ptr<TreeNode> n;
+		n = parse_if_statement();
+		if (!n) {
+			n = parse_while_statement();
+		}
+		if (!n) {
+			n = parse_expression();
+		}
+		if (!n) {
+			break;
+		}
+		node->statements.push_back(n);
+ 	}
+	return node;
 }
 
 
@@ -216,8 +291,7 @@ std::shared_ptr<ExpressionTreeNode> Parser::parse_arguments()
 				syntax_error("expression", token, lexer);
 				break;
 			}
-			tmp->left = next;
-			tmp = next;
+			node->left = next;
 		}
 	}
 	return node;

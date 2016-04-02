@@ -24,7 +24,7 @@ public:
 	
 	std::shared_ptr<FeatureTreeNode> parse_feature();
 
-	std::shared_ptr<FeatureTreeNode> parse_statements();
+	std::shared_ptr<StatementNode> parse_statements();
 
 	std::shared_ptr<ConditionStatementNode> parse_if_statement();
 
@@ -33,6 +33,8 @@ public:
 	std::shared_ptr<ExpressionTreeNode> parse_pran_expression();
 
 	std::shared_ptr<ExpressionTreeNode> parse_arguments();
+	
+	std::shared_ptr<DeclarationNode> parse_parameters();
 
 	std::shared_ptr<ExpressionTreeNode> parse_primary();
 

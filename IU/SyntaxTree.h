@@ -28,6 +28,7 @@ public:
 	TreeNode(TreeNodeType type) : type(type) {}
 	TreeNodeType type;
 	std::string content;
+	//std::shared_ptr<TreeNode> next;
 };
 
 class ExpressionTreeNode : public TreeNode {
@@ -38,33 +39,18 @@ public:
 	std::string op;
 };
 
-class StatamentNode : TreeNode {
 
-};
-
-class WhileStatementNode : TreeNode
-{
-	//condition
-	//block
-};
-
-class IfStatementNode :TreeNode
-{
-	//condition
-	//block
-	//else
-};
 class StatementNode : public TreeNode
 {
 public:
-	std::shared_ptr<TreeNode> next;
+	std::vector<std::shared_ptr<TreeNode>> statements;
 };
 
 class ConditionStatementNode : public TreeNode
 {
 public:
 	std::shared_ptr<ExpressionTreeNode> condition;
-	std::shared_ptr<StatamentNode> body;
+	std::shared_ptr<StatementNode> body;
 	std::shared_ptr<StatementNode> elsebody;
 };
 
@@ -73,15 +59,16 @@ class DeclarationNode : public TreeNode
 public:
 	DeclarationNode() { type = FIELD_DECLARATOR_NODE; }
 	std::string type_id;
-	shared_ptr<ExpressionTreeNode> init;
+	std::shared_ptr<ExpressionTreeNode> init;
+	std::shared_ptr<DeclarationNode> next;
 };
 
 class FeatureTreeNode : public TreeNode
 {
 public:
 	std::shared_ptr<DeclarationNode> declaration;
-	std::vector<std::string> parameter_types;
-	std::vector<std::string> parameter_id;
+	std::shared_ptr<DeclarationNode> parameters;
+	std::shared_ptr<StatementNode> statements;
 };
 
 class ClassTreeNode : public TreeNode 
