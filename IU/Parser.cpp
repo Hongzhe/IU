@@ -22,6 +22,31 @@ void Parser::parse()
 shared_ptr<ClassTreeNode> Parser::parse_class()
 {
 	auto node = make_shared<ClassTreeNode>();
+	token = lexer.getToken();
+	if (token.lexem != "class") {
+		syntax_error("class", token, lexer);
+		return nullptr;
+	}
+	token = lexer.getToken();
+	if (token.type != TK_TYPE_ID) {
+		syntax_error("TYPE ID", token, lexer);
+		return nullptr;
+	}
+	node->content = token.lexem;
+	token = lexer.getToken();
+	if (token.lexem == "inherits") {
+		token = lexer.getToken();
+		if (token.type != TK_TYPE_ID) {
+			syntax_error("TYPE_ID", token, lexer);
+			return nullptr;
+		}
+	}
+	else { lexer.unget(); }
+	token = lexer.getToken();
+	if (token.type != TK_LEFT_BRAC) {
+		syntax_error("{", token, lexer);
+		return nullptr;
+	}
 	vector<shared_ptr<FeatureTreeNode>> features;
 	while (true) {
 		shared_ptr<FeatureTreeNode> feature = parse_feature();
@@ -29,6 +54,11 @@ shared_ptr<ClassTreeNode> Parser::parse_class()
 			break;
 		}
 		features.push_back(feature);
+	}
+	token = lexer.getToken();
+	if (token.type != TK_RIGHT_BRAC) {
+		syntax_error("}", token, lexer);
+		return nullptr;
 	}
 	return node;
 }
@@ -244,7 +274,7 @@ shared_ptr<ExpressionTreeNode> Parser::parse_primary() {
 		node = make_shared<ExpressionTreeNode>(LITERAL_NODE);
 		node->content = token.lexem;
 	}
-	else if (token.type == TK_INT) {
+	else if (token.type == TK_INT_CONST) {
 		node = make_shared<ExpressionTreeNode>(LITERAL_NODE);
 		node->content = token.lexem;
 	}

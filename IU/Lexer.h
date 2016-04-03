@@ -7,7 +7,6 @@ enum Token_Type {
 	TK_INIT = 258,
 	TK_OBJ_ID,
 	TK_TYPE_ID,
-	TK_INT,
 	TK_ASSIGN,
 	TK_CHAR,
 	TK_STR_CONST,

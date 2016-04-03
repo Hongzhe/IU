@@ -106,7 +106,7 @@ Token Lexer::getToken()
 			}
 			else if (isdigit(c)) {
 				state = NUM_STATE;
-				token.type = TK_INT;
+				token.type = TK_INT_CONST;
 				token.lexem = c;
 			}
 			else if (c == '\'') {
