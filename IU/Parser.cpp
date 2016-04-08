@@ -2,6 +2,7 @@
 #include "Lexer.h"
 #include "Parser.h"
 #include "SyntaxTree.h"
+#include "ast.h"
 #include "Error.h"
 #include <memory>
 #include <iostream>
