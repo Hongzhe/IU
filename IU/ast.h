@@ -20,7 +20,7 @@ public:
 
 enum ASTNodeType {
 	LITERAL_EXP, PRAN_EXP, BINARY_EXP, METHOD_INVOC_EXP, CREATOR_EXP,
-	IF_STMT, WHILE_STMT, MEHTOD_DEFINE_STMT,CLASS_NODE, FORMAL
+	IF_STMT, WHILE_STMT, METHOD_DEFINE_STMT,CLASS_NODE, FORMAL, BLOCK_STMT
 };
 
 class ASTNode {
@@ -38,25 +38,25 @@ public:
 
 class PranExpression : public Expression {
 public:
-	std::unique_ptr<Expression> exp;
+	std::shared_ptr<Expression> exp;
 	void accept(IVisitor* visitor) { visitor->visit(this); }
 };
 
 class BinaryExpression : public Expression {
 public:
-	enum type {
-		ASSIGN, EQUAL, ADD, MINUS, MUL, DIV, MOD,
-		LT, LEQ, GT, GEQ
-	};
+	BinaryExpression(Token op, std::shared_ptr<Expression> l,
+		std::shared_ptr<Expression> r) : op(op), left(l), right(r) {}
+	BinaryExpression() {}
 	Token op;
-	std::unique_ptr<Expression> left;
-	std::unique_ptr<Expression> right;
+	std::shared_ptr<Expression> left;
+	std::shared_ptr<Expression> right;
 	void accept(IVisitor* visitor) { visitor->visit(this); }
 };
 
 class LiteralExpression : public Expression {
 public:
 	LiteralExpression() {}
+	LiteralExpression(Token token) : token(token){}
 	Token token;
 	void accept(IVisitor* visitor) { visitor->visit(this); }
 };
@@ -64,47 +64,60 @@ public:
 class ClassCreatorExpression : public Expression {
 public:
 	Token name;
-	std::vector<std::unique_ptr<Expression>>arguments;
+	std::vector<std::shared_ptr<Expression>>arguments;
 	void accept(IVisitor* visitor) { visitor->visit(this); }
 };
 
-class MethodInvocationExpression : Expression {
+class MethodInvocationExpression : public Expression {
 public:
 	Token name;
-	std::vector<std::unique_ptr<Expression>> arguments;
+	std::vector<std::shared_ptr<Expression>> arguments;
 	void accept(IVisitor* visitor) { visitor->visit(this);}
 
 };
 
-class Statement {
+class Statement : public ASTNode {
 public:
 	virtual ~Statement() {};
 };
 
-class IfStatement : ASTNode 
+class BlockStatement : public Statement {
+public:
+	std::vector<std::shared_ptr<Statement>> stmts;
+};
+
+class ExpStatement : public Statement {
+public:
+	ExpStatement() {}
+	ExpStatement(std::shared_ptr<Expression> exp) : expression(exp) {}
+	std::shared_ptr<Expression> expression;
+};
+
+class IfStatement : public Statement
+{
+public:
+	IfStatement() {}
+	std::shared_ptr<Expression> condition;
+	std::shared_ptr<Statement> block;
+	std::shared_ptr<Statement> elsepart;
+};
+
+class WhileStatement : public Statement
 {
 public:
 	std::unique_ptr<Expression> condition;
 	std::unique_ptr<Statement> block;
-	std::unique_ptr<Statement> elsepart;
-
 };
 
-class WhileStatement : ASTNode
-{
-public:
-	std::unique_ptr<Expression> condition;
-	std::unique_ptr<Statement> block;
-};
-
-class Formal : ASTNode
+class Formal : public ASTNode
 {
 public:
 	Token type;
 	Token id;
+	std::shared_ptr<Expression> val;
 };
 
-class MethodDefinition : ASTNode
+class MethodDefinition : public ASTNode
 {
 public:
 	Token returntype;
@@ -117,7 +130,7 @@ class ClassNode : public ASTNode
 {
 public:
 	Token classname;
-	std::vector<std::unique_ptr<MethodDefinition>> methods;
+	std::vector<std::shared_ptr<MethodDefinition>> methods;
 	std::vector<std::unique_ptr<Formal>> fields;
 	std::unique_ptr<ClassNode> parent;
 	std::string parentname;

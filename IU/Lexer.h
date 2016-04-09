@@ -69,9 +69,15 @@ struct Token {
 class Lexer {
 private:
 	unsigned lineno;
+	
 	std::ifstream fin;
+	
+	Token cur_token;
+
 	char nextChar();
+	
 	void putBack();
+
 	void init_keyword();
 public:
 	Lexer();
@@ -82,6 +88,8 @@ public:
 	std::set<std::string> keywords;
 	STATE state;
 	unsigned getLineno() { return lineno; }
+
+	Token getCurToken() { return cur_token; }
 };
 
 

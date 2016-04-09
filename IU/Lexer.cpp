@@ -362,5 +362,6 @@ Token Lexer::getToken()
 	if (state == EOF_STATE && (token.type == TK_STR_CONST || token.type == TK_CHAR)) {
 		throw LexerException("Undetermined token.", lineno);
 	}
+	cur_token = token;
 	return token;
 }
