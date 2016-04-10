@@ -70,26 +70,35 @@ class Lexer {
 private:
 	unsigned lineno;
 	
-	std::ifstream fin;
+	std::fstream fin;
 	
 	Token cur_token;
 
 	char nextChar();
 	
-	void putBack();
-
 	void init_keyword();
 public:
-	Lexer();
-	Token getToken();
-	void unget();
-	void openFile(std::string file);
-	void closeFile();
-	std::set<std::string> keywords;
 	STATE state;
+
+	Lexer();
+	
+	Token getToken();
+	
+	void unget();
+	
+	void putback(char c);
+
+	void openFile(std::string file);
+	
+	void closeFile();
+	
+	std::set<std::string> keywords;
+	
 	unsigned getLineno() { return lineno; }
 
 	Token getCurToken() { return cur_token; }
+	
+	bool isBinOp(Token token);
 };
 
 

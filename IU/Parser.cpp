@@ -1,3 +1,4 @@
+#include "stdafx.h"
 #include <memory>
 #include <vector>
 #include <string>
@@ -15,6 +16,7 @@ void Parser::prepare(std::string filename) {
 
 Parser::Parser() {
 	BinopPrecedence["=="] = 1;
+	BinopPrecedence["="] = 5;
 	BinopPrecedence["<"] = 10;
 	BinopPrecedence[">"] = 10;
 	BinopPrecedence["<="] = 10;
@@ -62,11 +64,11 @@ shared_ptr<ClassNode> Parser::parse_class() {
 		return nullptr;
 	}
 	vector<shared_ptr<MethodDefinition>> methods;
-	vector<unique_ptr<Formal>> fields;
+	vector<shared_ptr<Formal>> fields;
 	while (true) {
 		//parse field
 		//parse methods
-		unique_ptr<Formal>field = parse_formal();
+		shared_ptr<Formal>field = parse_formal();
 		if (field) {
 			fields.push_back(field);
 		}
@@ -88,9 +90,9 @@ shared_ptr<ClassNode> Parser::parse_class() {
 	return node;
 }
 
-unique_ptr<Formal> Parser::parse_formal()
+shared_ptr<Formal> Parser::parse_formal()
 {
-	auto node = make_unique<Formal>();
+	auto node = make_shared<Formal>();
 	Token token = lexer.getToken();
 	if (token.type != TK_TYPE_ID) {
 		return nullptr;
@@ -109,6 +111,7 @@ unique_ptr<Formal> Parser::parse_formal()
 	else {
 		lexer.unget();
 	}
+	return node;
 }
 
 shared_ptr<MethodDefinition> Parser::parse_method()
@@ -128,33 +131,35 @@ shared_ptr<MethodDefinition> Parser::parse_method()
 	}
 	node->name = token;
 	lexer.getToken(); //eat '('
-	vector<unique_ptr<Formal>> formals;
-	unique_ptr<Formal> formal = parse_formal();
+	vector<shared_ptr<Formal>> formals;
+	shared_ptr<Formal> formal = parse_formal();
 	if (formal)
 		formals.push_back(formal);
 	while (true) {
 		token = lexer.getToken();
 		if (token.type != TK_COMMA)
 			break;
-		unique_ptr<Formal> f = parse_formal();
+		shared_ptr<Formal> f = parse_formal();
 		if (!f)
 			break;
 		formals.push_back(f);
 	}
 	node->arguments = formals;
-	shared_ptr<Statement> block = parse_block_statement();
+	shared_ptr<BlockStatement> block = parse_block_statement();
 	if (!block)
 		return nullptr;
+	node->block = block;
 	return node;
 }
-shared_ptr<Statement> Parser::parse_block_statement() 
+shared_ptr<BlockStatement> Parser::parse_block_statement() 
 {
 	auto node = make_shared<BlockStatement>();
 	node->node_type = BLOCK_STMT;
 	vector<shared_ptr<Statement>> statements;
 	token = lexer.getToken();
 	if (token.type != TK_LEFT_BRAC) {
-		syntax_error("(", token, lexer);
+		//syntax_error("{", token, lexer);
+		lexer.unget();
 		return nullptr;
 	}
 	while (true) {
@@ -177,6 +182,7 @@ shared_ptr<Statement> Parser::parse_block_statement()
 shared_ptr<Statement> Parser::parse_exp_statement()
 {
 	auto node = make_shared<ExpStatement>(parse_expression());
+	node->node_type = EXP_STMT;
 	return node;
 }
 
@@ -194,19 +200,13 @@ shared_ptr<Statement> Parser::parse_statement()
 	if (!node) {
 		node = parse_while_stmt();
 	}
-
 	return node;
-}
-
-vector<shared_ptr<Statement>> Parser::parse_statements()
-{
-	vector<shared_ptr<Statement>> statements;
-	
 }
 
 shared_ptr<WhileStatement> Parser::parse_while_stmt()
 {
 	auto node = make_shared<WhileStatement>();
+	node->node_type = WHILE_STMT;
 	Token token = lexer.getToken();
 	if (token.lexem != "while") {
 		return nullptr;
@@ -217,15 +217,17 @@ shared_ptr<WhileStatement> Parser::parse_while_stmt()
 		return nullptr;
 	}
 	shared_ptr<Expression> condition = parse_expression();
+	node->condition = condition;
 	token = lexer.getToken();
 	if (token.type != TK_RIGHT_PRAN) {
 		syntax_error(")", token, lexer);
 		return nullptr;
 	}
-	shared_ptr<Statement> stmt = parse_block_statement();
-	if (!stmt) {
+	shared_ptr<Statement> block = parse_block_statement();
+	if (!block) {
 		return nullptr;
 	}
+	node->block = block;
 	return node;
 }
 
@@ -234,8 +236,11 @@ shared_ptr<IfStatement> Parser::parse_if_stmt()
 	auto node = make_shared<IfStatement>();
 	node->node_type = IF_STMT;
 	Token token = lexer.getToken();
-	if (token.lexem != "if")
+	if (token.lexem != "if") {
+		lexer.unget();
 		return nullptr;
+	}
+		
 	token = lexer.getToken();
 	if (token.type != TK_LEFT_PRAN) {
 		syntax_error("(", token, lexer);
@@ -248,7 +253,7 @@ shared_ptr<IfStatement> Parser::parse_if_stmt()
 		syntax_error(")", token, lexer);
 		return nullptr;
 	}
-	token = lexer.getToken();
+		
 	//parse statement;
 	shared_ptr<Statement> stmt = parse_block_statement();
 	if (!stmt) return nullptr;
@@ -262,6 +267,9 @@ shared_ptr<IfStatement> Parser::parse_if_stmt()
 		}
 		node->elsepart = elsestmt;
 	}
+	else {
+		lexer.unget();
+	}
 	return node;
 }
 
@@ -270,6 +278,7 @@ shared_ptr<IfStatement> Parser::parse_if_stmt()
 int Parser::getOperatorPrecedence() 
 {
 	Token token = lexer.getCurToken();
+	if (lexer.state == EOF_STATE) return -1;
 	int prec = BinopPrecedence[token.lexem];
 	return prec < 0 ? -1 : prec;
 }
@@ -279,6 +288,10 @@ shared_ptr<Expression> Parser::parse_binary_experssion(int precedence,
 {
 	while (1) {
 		Token token = lexer.getToken();
+		if (!lexer.isBinOp(token)) {
+			lexer.unget();
+			return left;
+		}
 		int tokenprec = getOperatorPrecedence();
 		if (tokenprec < precedence) {
 			return left;
@@ -287,16 +300,29 @@ shared_ptr<Expression> Parser::parse_binary_experssion(int precedence,
 		auto right = parse_primary();
 		if (!right)
 			return nullptr;
-		lexer.getToken();
-		int nextprec = getOperatorPrecedence();
-		if (tokenprec < nextprec) {
-			right = parse_binary_experssion(tokenprec + 1, std::move(right));
-			if (!right)
-				return nullptr;
+		token = lexer.getToken();
+		if (lexer.isBinOp(token)) 
+		{
+			int nextprec = getOperatorPrecedence();
+			if (tokenprec < nextprec) {
+				lexer.unget();
+				right = parse_binary_experssion(tokenprec + 1, std::move(right));
+				if (!right)
+					return nullptr;
+			}
+			else {
+				lexer.unget();
+			}
 		}
+		else {
+			lexer.unget();
+		}
+		
 		left = make_shared<BinaryExpression>(op, std::move(left), std::move(right));
+		left->node_type = BINARY_EXP;
 	}
 }
+
 shared_ptr<Expression> Parser::parse_expression()
 {
 	auto left = parse_primary();
@@ -310,7 +336,7 @@ std::unique_ptr<PranExpression> Parser::parse_parn_exp()
 {
 	auto node = make_unique<PranExpression>();
 	node->node_type = PRAN_EXP;
-	Token token = lexer.getToken();
+	Token token = lexer.getToken(); //"("
 	node->exp  = parse_expression();
 	token = lexer.getToken();
 	if (token.type != TK_RIGHT_PRAN) {
@@ -330,13 +356,13 @@ vector<shared_ptr<Expression>> Parser::parse_arguments()
 	arguments.push_back(exp);
 	while (true) {
 		token = lexer.getToken();
-		if (token.type == TK_COMMA) {
+		if (token.type != TK_COMMA) {
 			lexer.unget();
 			break;
 		}
 		auto argument = parse_expression();
 		if (!argument) {
-			syntax_error("expression", token, lexer);
+			//syntax_error("expression", token, lexer);
 			break;
 		}
 		arguments.push_back(argument);
@@ -375,10 +401,10 @@ shared_ptr<ClassCreatorExpression> Parser::parse_creator()
 shared_ptr<MethodInvocationExpression> Parser::parse_method_invocation()
 {
 	auto node = make_shared<MethodInvocationExpression>();
-	Token token = lexer.getToken();
+	Token token = lexer.getToken(); //eat 'obj'
 	node->node_type = METHOD_INVOC_EXP;
 	node->name = token;
-	token = lexer.getToken();//'('
+	token = lexer.getToken();//eat '('
 	vector<shared_ptr<Expression>> arguments = parse_arguments();
 	token = lexer.getToken();
 	if (token.type != TK_RIGHT_PRAN) {
@@ -415,13 +441,17 @@ shared_ptr<Expression> Parser::parse_primary()
 		return nullptr;
 	}
 	else if (token.type == TK_OBJ_ID) {
+		Token prev = token;
 		token = lexer.getToken();
 		if (token.type != TK_LEFT_PRAN) {
+			lexer.unget();
 			shared_ptr<LiteralExpression> n = make_shared<LiteralExpression>();
-			n->token = token;
+			n->token = prev;
+			n->node_type = LITERAL_EXP;
 			return n;
 		}
 		else {
+			lexer.unget();
 			lexer.unget();
 			auto node = parse_method_invocation();
 			if (node) {
@@ -430,4 +460,6 @@ shared_ptr<Expression> Parser::parse_primary()
 			return nullptr;
 		}
 	}
+	lexer.unget(); //no primery found
+	return nullptr;
 }

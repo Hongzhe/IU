@@ -13,28 +13,27 @@ using namespace std;
 
 int main()
 {
-	Lexer iuLexer;
-	//iuLexer.openFile("c:/code/IU/test/operator.IU");
-	Token token;
-	//iuLexer.openFile("c:/code/IU/test/exp_test.IU");
-	Parser parser;
-	parser.prepare("c:/code/IU/test/exp_test.IU");
-	shared_ptr<ExpressionTreeNode> root = parser.parse_expression();
-	parser.print_expression(root->left);
-	/*try {
-		while (iuLexer.state != EOF_STATE) {
-			token = iuLexer.getToken();
-			if(token.type != TK_INIT)
-				cout << token.type << " " << token.lexem << endl;
-		}
-	}
-	catch (LexerException e) {
-		cout << "catch a exception " << endl;
-		cout <<"At line " << e.lineno << " " <<e.what() << endl;
-		cout << token.lexem << endl;
+/*	Lexer iuLexer;
+	iuLexer.openFile("c:/code/IU/test/exp_test.IU");
+	Token token = iuLexer.getToken();
+	cout << token.lexem << endl;
+	iuLexer.unget();
+	token = iuLexer.getToken();
+	cout << token.lexem << endl;
+	token = iuLexer.getToken();
+	cout << token.lexem << endl;
+	/*Token token;
+	while (iuLexer.state != EOF_STATE) {
+		token = iuLexer.getToken();
+		cout << token.type << " " << token.lexem << endl;
 	}*/
 
-
+	Parser parser;
+	parser.prepare("c:/code/IU/test/stmt_test.IU");
+//	shared_ptr<Expression> exp = parser.parse_expression();
+	shared_ptr<Statement> stmt = parser.parse_statement();
+	TreePrinter printer;
+	printer.visit(stmt);
 	
     return 0;
 }

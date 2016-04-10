@@ -57,14 +57,18 @@ char Lexer::nextChar()
 	return c;
 }
 
-void Lexer::putBack()
+void Lexer::putback(char c)
 {
-	fin.unget();
+	fin.putback(c);
 }
 
 void Lexer::unget()
 {
-	fin.unget();
+	int len = cur_token.lexem.length();
+	for (int i = 0; i < len; i++) {
+		char c = cur_token.lexem[len-i-1];
+		fin.putback(c);
+	}
 }
 
 bool isWitespace(char c)
@@ -175,7 +179,7 @@ Token Lexer::getToken()
 				state = DONE_STATE;
 			}
 			else if (c == '}') {
-				token.type = TK_RIGHT_PRAN;
+				token.type = TK_RIGHT_BRAC;
 				token.lexem = c;
 				state = DONE_STATE;
 			}
@@ -189,6 +193,11 @@ Token Lexer::getToken()
 				token.lexem = c;
 				state = DONE_STATE;
 			}
+			else if (c == ',') {
+				token.type = TK_COMMA;
+				token.lexem = c;
+				state = DONE_STATE;
+			}
 			break;
 		case OBJID_STATE:
 			if (isalpha(c) || isdigit(c) || c == '_') {
@@ -196,7 +205,7 @@ Token Lexer::getToken()
 			}
 			else {
 				state = DONE_STATE;
-				unget();
+				putback(c);
 			}
 			break;
 		case TYPEID_STATE:
@@ -205,7 +214,7 @@ Token Lexer::getToken()
 			}
 			else {
 				state = DONE_STATE;
-				unget();
+				putback(c);
 			}
 			break;
 		case NUM_STATE:
@@ -213,7 +222,7 @@ Token Lexer::getToken()
 				token.lexem.append(1, c);
 			}
 			else {
-				putBack();
+				putback(c);
 				state = DONE_STATE;
 			}
 			break;
@@ -296,7 +305,7 @@ Token Lexer::getToken()
 				state = DONE_STATE;
 			}
 			else {
-				putBack();
+				putback(c);
 				state = START_STATE;
 			}
 			break;
@@ -306,7 +315,7 @@ Token Lexer::getToken()
 				token.lexem.append(1, c);
 			}
 			else {
-				putBack();
+				putback(c);
 			}
 			state = DONE_STATE;
 			break;
@@ -316,7 +325,7 @@ Token Lexer::getToken()
 				token.lexem.append(1, c);
 			}
 			else {
-				putBack();
+				putback(c);
 			}
 			state = DONE_STATE;
 			break;
@@ -328,7 +337,7 @@ Token Lexer::getToken()
 				state = MULTILINE_COMMENT_STATE;
 			}
 			else {
-				putBack();
+				putback(c);
 				state = DONE_STATE;
 			}
 			break;
@@ -345,7 +354,7 @@ Token Lexer::getToken()
 					state = DONE_STATE;
 				}
 				else {
-					putBack();
+					putback(c);
 				}
 			}
 			token.lexem.append(1, c);
@@ -364,4 +373,14 @@ Token Lexer::getToken()
 	}
 	cur_token = token;
 	return token;
+}
+
+bool Lexer::isBinOp(Token token)
+{	
+	Token_Type type = token.type;
+	return type == TK_ADD || type == TK_DIVID ||
+		type == TK_MINUS || type == TK_MOD ||
+		type == TK_MULTIPLY || type == TK_LE ||
+		type == TK_LEQ || type == TK_GT || type == TK_GEQ
+		;
 }

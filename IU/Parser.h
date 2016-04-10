@@ -15,7 +15,7 @@ private:
 		}
 		return false;
 	}
-
+	
 	std::shared_ptr<ClassNode> Parser::parse_class();
 
 	std::vector<std::shared_ptr<Expression>> parse_arguments();
@@ -32,29 +32,29 @@ private:
 
 	std::unique_ptr<PranExpression> Parser::parse_parn_exp();
 
-	std::shared_ptr<Expression> Parser::parse_expression();
+	//std::shared_ptr<Expression> Parser::parse_expression();
 
-	std::unique_ptr<Formal> parse_formal();
+	std::shared_ptr<Formal> parse_formal();
 
-	std::vector<std::shared_ptr<Statement>> parse_statements();
-	
-	std::shared_ptr<Statement> parse_statement();
+	//std::shared_ptr<Statement> parse_statement();
 
-	shared_ptr<Statement> Parser::parse_exp_statement();
+	std::shared_ptr<Statement> Parser::parse_exp_statement();
 
-	std::shared_ptr<Statement> parse_block_statement();
+	std::shared_ptr<BlockStatement> parse_block_statement();
 
 	std::shared_ptr<IfStatement> parse_if_stmt();
 
 	std::shared_ptr<WhileStatement> parse_while_stmt();
-
+	
 	int getOperatorPrecedence();
+
+	
 public:
 	Token token;
-	Parser() {}
+	Parser();
 	void parse();
-	
 	void prepare(std::string filename);
-
+	std::shared_ptr<Expression> Parser::parse_expression();
+	std::shared_ptr<Statement> parse_statement();
 };
 
