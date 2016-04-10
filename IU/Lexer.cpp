@@ -61,6 +61,14 @@ void Lexer::putback(char c)
 {
 	fin.putback(c);
 }
+void Lexer::unget(Token token)
+{
+	int len = token.lexem.length();
+	for (int i = 0; i < len; i++) {
+		char c = token.lexem[len - i - 1];
+		fin.putback(c);
+	}
+}
 
 void Lexer::unget()
 {
@@ -302,12 +310,12 @@ Token Lexer::getToken()
 			if (c == '=') {
 				token.type = TK_EQ;
 				token.lexem.append(1, c);
-				state = DONE_STATE;
 			}
 			else {
 				putback(c);
-				state = START_STATE;
+				//state = START_STATE;
 			}
+			state = DONE_STATE;
 			break;
 		case GT_STATE:
 			if (c == '=') {
@@ -381,6 +389,6 @@ bool Lexer::isBinOp(Token token)
 	return type == TK_ADD || type == TK_DIVID ||
 		type == TK_MINUS || type == TK_MOD ||
 		type == TK_MULTIPLY || type == TK_LE ||
-		type == TK_LEQ || type == TK_GT || type == TK_GEQ
-		;
+		type == TK_LEQ || type == TK_GT || type == TK_GEQ ||
+		type == TK_EQ || type == TK_ASSIGN;
 }

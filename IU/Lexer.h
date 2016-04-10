@@ -86,6 +86,8 @@ public:
 	
 	void unget();
 	
+	void unget(Token token);
+
 	void putback(char c);
 
 	void openFile(std::string file);

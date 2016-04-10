@@ -28,9 +28,9 @@ Parser::Parser() {
 	BinopPrecedence["%"] = 30;
 }
 
-void Parser::parse()
+shared_ptr<ClassNode> Parser::parse()
 {
-	parse_class();
+	return parse_class();
 }
 
 
@@ -79,6 +79,12 @@ shared_ptr<ClassNode> Parser::parse_class() {
 			}
 			methods.push_back(m);
 		}
+		token = lexer.getToken();
+		if (token.type == TK_RIGHT_BRAC) {
+			lexer.unget();
+			break;
+		}
+		lexer.unget();
 	}
 	node->fields = fields;
 	node->methods = methods;
@@ -95,11 +101,13 @@ shared_ptr<Formal> Parser::parse_formal()
 	auto node = make_shared<Formal>();
 	Token token = lexer.getToken();
 	if (token.type != TK_TYPE_ID) {
+		lexer.unget();
 		return nullptr;
 	}
 	node->type = token;
 	token = lexer.getToken();
 	if (token.type != TK_OBJ_ID) {
+		lexer.unget();
 		return nullptr;
 	}
 	node->id = token;
@@ -107,6 +115,13 @@ shared_ptr<Formal> Parser::parse_formal()
 	if (token.type == TK_ASSIGN) {
 		shared_ptr<Expression> exp = parse_expression();
 		node->val = exp;
+	} 
+	else if (token.type == TK_LEFT_PRAN) {
+		lexer.unget();
+		lexer.unget(node->id);
+		lexer.putback(' ');
+		lexer.unget(node->type);
+		return nullptr;
 	}
 	else {
 		lexer.unget();
@@ -124,7 +139,7 @@ shared_ptr<MethodDefinition> Parser::parse_method()
 		return nullptr;
 	}
 	node->returntype = token;
-	lexer.getToken();
+	token = lexer.getToken();
 	if (token.type != TK_OBJ_ID) {
 		syntax_error("OBJ_ID", token, lexer);
 		return nullptr;
@@ -200,20 +215,37 @@ shared_ptr<Statement> Parser::parse_statement()
 	if (!node) {
 		node = parse_while_stmt();
 	}
+	if (!node) {
+		node = parse_return_stmt();
+	}
 	return node;
 }
-
+shared_ptr<ExpStatement> Parser::parse_return_stmt() 
+{
+	Token token = lexer.getToken();
+	if (token.lexem != "return") {
+		lexer.unget();
+		return nullptr;
+	}
+	auto node = make_shared<ExpStatement>();
+	node->node_type = RETURN_STMT;
+	auto exp = parse_expression();
+	node->expression = exp;
+	return node;
+}
 shared_ptr<WhileStatement> Parser::parse_while_stmt()
 {
 	auto node = make_shared<WhileStatement>();
 	node->node_type = WHILE_STMT;
 	Token token = lexer.getToken();
 	if (token.lexem != "while") {
+		lexer.unget();
 		return nullptr;
 	}
 	token = lexer.getToken();
 	if (token.type != TK_LEFT_PRAN) {
 		syntax_error("(", token, lexer);
+		lexer.unget();
 		return nullptr;
 	}
 	shared_ptr<Expression> condition = parse_expression();
@@ -221,6 +253,7 @@ shared_ptr<WhileStatement> Parser::parse_while_stmt()
 	token = lexer.getToken();
 	if (token.type != TK_RIGHT_PRAN) {
 		syntax_error(")", token, lexer);
+		lexer.unget();
 		return nullptr;
 	}
 	shared_ptr<Statement> block = parse_block_statement();

@@ -46,13 +46,15 @@ private:
 
 	std::shared_ptr<WhileStatement> parse_while_stmt();
 	
+	std::shared_ptr<ExpStatement> parse_return_stmt();
+
 	int getOperatorPrecedence();
 
 	
 public:
 	Token token;
 	Parser();
-	void parse();
+	std::shared_ptr<ClassNode> parse();
 	void prepare(std::string filename);
 	std::shared_ptr<Expression> Parser::parse_expression();
 	std::shared_ptr<Statement> parse_statement();

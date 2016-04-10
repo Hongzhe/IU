@@ -41,7 +41,7 @@ public:
 enum ASTNodeType {
 	LITERAL_EXP, PRAN_EXP, BINARY_EXP, METHOD_INVOC_EXP, CREATOR_EXP,
 	IF_STMT, WHILE_STMT, METHOD_DEFINE_STMT,CLASS_NODE, FORMAL, BLOCK_STMT,
-	EXP_STMT
+	EXP_STMT,RETURN_STMT
 };
 
 class ASTNode {
@@ -212,6 +212,9 @@ public:
 	void visit(std::shared_ptr<Formal> node)
 	{
 		std::cout << node->type.lexem << " " << node->id.lexem;
+		if (node->val) {
+			visit(node->val);
+		}
 	}
 
 	void visit(std::shared_ptr<ClassCreatorExpression> node)
@@ -252,6 +255,9 @@ public:
 			visit(std::dynamic_pointer_cast<BlockStatement>(node));
 			break;
 		case EXP_STMT:
+			visit(std::dynamic_pointer_cast<ExpStatement>(node));
+			break;
+		case RETURN_STMT:
 			visit(std::dynamic_pointer_cast<ExpStatement>(node));
 			break;
 		}
@@ -300,8 +306,30 @@ public:
 	
 	void visit(std::shared_ptr<ExpStatement> node) 
 	{
+		if (node->node_type == RETURN_STMT) {
+			std::cout << "return ";
+		}
 		visit(node->expression);
 	}
 
-	void visit(std::shared_ptr<ClassNode> node) {}
+	
+	void visit(std::shared_ptr<ClassNode> node) 
+	{
+		std::cout << "class " << node->classname.lexem;
+		if (node->parent) {
+			std::cout << "inherits " << node->parent->classname.lexem;
+		}
+		std::cout << "{ ";
+		auto fields = node->fields;
+		for (int i = 0; i < fields.size(); i++) {
+			visit(fields[i]);
+		}
+		std::cout << std::endl;
+		auto methods = node->methods;
+		for (int j = 0; j < methods.size(); j++) {
+			visit(methods[j]);
+			std::cout << std::endl;
+		}
+		std::cout << "}" << std::endl;
+	}
 };
