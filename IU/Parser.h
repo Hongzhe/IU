@@ -48,6 +48,8 @@ private:
 	
 	std::shared_ptr<ExpStatement> parse_return_stmt();
 
+	std::shared_ptr<Expression> Parser::parse_variable_declar();
+
 	int getOperatorPrecedence();
 
 	

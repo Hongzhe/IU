@@ -256,7 +256,7 @@ shared_ptr<WhileStatement> Parser::parse_while_stmt()
 		lexer.unget();
 		return nullptr;
 	}
-	shared_ptr<Statement> block = parse_block_statement();
+	shared_ptr<BlockStatement> block = parse_block_statement();
 	if (!block) {
 		return nullptr;
 	}
@@ -288,13 +288,13 @@ shared_ptr<IfStatement> Parser::parse_if_stmt()
 	}
 		
 	//parse statement;
-	shared_ptr<Statement> stmt = parse_block_statement();
+	shared_ptr<BlockStatement> stmt = parse_block_statement();
 	if (!stmt) return nullptr;
 	node->condition = condition;
 	node->block = stmt;
 	token = lexer.getToken();
 	if (token.lexem == "else") {
-		shared_ptr<Statement> elsestmt = parse_block_statement();
+		shared_ptr<BlockStatement> elsestmt = parse_block_statement();
 		if (!elsestmt) {
 			return nullptr;
 		}
@@ -357,8 +357,11 @@ shared_ptr<Expression> Parser::parse_binary_experssion(int precedence,
 }
 
 shared_ptr<Expression> Parser::parse_expression()
-{
-	auto left = parse_primary();
+{	
+	auto left = parse_variable_declar();
+	if (!left) {
+		left = parse_primary();
+	}
 	if (!left) {
 		return nullptr;
 	}
@@ -449,6 +452,28 @@ shared_ptr<MethodInvocationExpression> Parser::parse_method_invocation()
 	return node;
 }
 
+//变量的声明
+shared_ptr<Expression> Parser::parse_variable_declar()
+{
+	Token token = lexer.getToken();
+	if (!(token.type == TK_TYPE_ID)) {
+		lexer.unget();
+		return nullptr;
+	}
+	Token type = token;
+	token = lexer.getToken();
+	if (token.type != TK_OBJ_ID) {
+		lexer.unget(type);
+		lexer.unget();
+		return nullptr;
+	}
+	shared_ptr<VariableDeclareExpression> node = make_shared<VariableDeclareExpression>();
+	node->type = type;
+	node->id = token;
+	node->node_type = VAR_DECL_EXP;
+	return node;
+}
+
 shared_ptr<Expression> Parser::parse_primary()
 {
 	Token token = lexer.getToken();
@@ -484,7 +509,7 @@ shared_ptr<Expression> Parser::parse_primary()
 			return n;
 		}
 		else {
-			lexer.unget();
+			lexer.unget(prev);
 			lexer.unget();
 			auto node = parse_method_invocation();
 			if (node) {

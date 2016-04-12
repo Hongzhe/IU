@@ -12,6 +12,7 @@ class LiteralExpression;
 class MethodInvocationExpression;
 class ClassCreatorExpression;
 class PranExpression;
+class VariableDeclareExpression;
 class IfStatement;
 class WhileStatement;
 class MethodDefinition;
@@ -19,7 +20,9 @@ class Formal;
 class ClassNode;
 class BlockStatement;
 class ExpStatement;
+
 //visitor pattern
+
 class IVisitor
 {
 public:
@@ -35,11 +38,12 @@ public:
 	virtual void visit(std::shared_ptr<ClassNode> node) = 0;
 	virtual void visit(std::shared_ptr<BlockStatement> node) = 0;
 	virtual void visit(std::shared_ptr<ExpStatement> node) = 0;
+	virtual void visit(std::shared_ptr<VariableDeclareExpression> node) = 0;
 };
 
 
 enum ASTNodeType {
-	LITERAL_EXP, PRAN_EXP, BINARY_EXP, METHOD_INVOC_EXP, CREATOR_EXP,
+	LITERAL_EXP, PRAN_EXP, BINARY_EXP, METHOD_INVOC_EXP, CREATOR_EXP,VAR_DECL_EXP,
 	IF_STMT, WHILE_STMT, METHOD_DEFINE_STMT,CLASS_NODE, FORMAL, BLOCK_STMT,
 	EXP_STMT,RETURN_STMT
 };
@@ -74,6 +78,16 @@ public:
 	void accept(IVisitor* visitor) { visitor->visit(std::shared_ptr<BinaryExpression>(this)); }
 };
 
+class VariableDeclareExpression : public Expression
+{
+public:
+	VariableDeclareExpression(Token id, Token type): id(id), type(type) {}
+	VariableDeclareExpression() {}
+	Token id;
+	Token type;
+	void accept(IVisitor* visitor) { visitor->visit(std::shared_ptr<VariableDeclareExpression>(this)); }
+};
+
 class LiteralExpression : public Expression {
 public:
 	LiteralExpression() {}
@@ -94,7 +108,6 @@ public:
 	Token name;
 	std::vector<std::shared_ptr<Expression>> arguments;
 	void accept(IVisitor* visitor) { visitor->visit(std::shared_ptr<MethodInvocationExpression>(this));}
-
 };
 
 class Statement : public ASTNode {
@@ -121,8 +134,8 @@ class IfStatement : public Statement
 public:
 	IfStatement() {}
 	std::shared_ptr<Expression> condition;
-	std::shared_ptr<Statement> block;
-	std::shared_ptr<Statement> elsepart;
+	std::shared_ptr<BlockStatement> block;
+	std::shared_ptr<BlockStatement> elsepart;
 	void accept(IVisitor* visitor) { visitor->visit(std::shared_ptr<IfStatement>(this)); }
 };
 
@@ -130,7 +143,7 @@ class WhileStatement : public Statement
 {
 public:
 	std::shared_ptr<Expression> condition;
-	std::shared_ptr<Statement> block;
+	std::shared_ptr<BlockStatement> block;
 	void accept(IVisitor* visitor) { visitor->visit(std::shared_ptr<WhileStatement>(this)); }
 };
 
@@ -262,6 +275,7 @@ public:
 			break;
 		}
 	}
+
 	void visit(std::shared_ptr<IfStatement> node) 
 	{
 		std::cout << "if (" ;
@@ -312,7 +326,11 @@ public:
 		visit(node->expression);
 	}
 
-	
+	void visit(std::shared_ptr<VariableDeclareExpression> node)
+	{
+		std::cout << node->type.lexem << " " << node->id.lexem;
+	}
+
 	void visit(std::shared_ptr<ClassNode> node) 
 	{
 		std::cout << "class " << node->classname.lexem;
