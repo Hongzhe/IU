@@ -234,7 +234,7 @@ public:
 	{
 		std::cout << "new " << node->name.lexem << "( ";
 		std::vector<std::shared_ptr<Expression>> arguments = node->arguments;
-		for (int i = 0; i < arguments.size(); i++) {
+		for (int i = 0; i < (int)arguments.size(); i++) {
 			visit(arguments[i]);
 			std::cout << " ";
 		}
@@ -301,7 +301,7 @@ public:
 		std::cout << node->returntype.lexem << " ";
 		std::cout << node->name.lexem << " ги";
 		auto arguments = node->arguments;
-		for (int i = 0; i < arguments.size(); i++) {
+		for (int i = 0; i < (int)arguments.size(); i++) {
 			visit(arguments[i]);
 		}
 		std::cout << ")";
@@ -312,7 +312,7 @@ public:
 	{
 		std::cout << "{ " << std::endl;
 		auto stmts = node->stmts;
-		for (int i = 0; i < stmts.size(); i++) {
+		for (int i = 0; i < (int)stmts.size(); i++) {
 			visit(stmts[i]);
 		}
 		std::cout << "}" << std::endl;
@@ -339,12 +339,12 @@ public:
 		}
 		std::cout << "{ ";
 		auto fields = node->fields;
-		for (int i = 0; i < fields.size(); i++) {
+		for (int i = 0; i < (int)fields.size(); i++) {
 			visit(fields[i]);
 		}
 		std::cout << std::endl;
 		auto methods = node->methods;
-		for (int j = 0; j < methods.size(); j++) {
+		for (int j = 0; j < (int)methods.size(); j++) {
 			visit(methods[j]);
 			std::cout << std::endl;
 		}

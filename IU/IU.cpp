@@ -8,6 +8,7 @@
 #include <fstream>
 #include "LexerException.h"
 #include "Parser.h"
+#include "SymbolTable.h"
 
 using namespace std;
 
@@ -23,10 +24,15 @@ int main()
 */
 	Parser parser;
 	parser.prepare("c:/code/IU/test/class_test.IU");
-//	shared_ptr<Expression> exp = parser.parse_expression();
 	shared_ptr<ClassNode> stmt = parser.parse();
-	TreePrinter printer;
-	printer.visit(stmt);
+	SymbolTable* table = new SymbolTable();
+	BlockSymbolTable* sb = table->addClass(stmt);
+	auto sbmap = sb->table;
+	for (auto it = sbmap.cbegin(); it != sbmap.cend(); ++it) {
+		cout << it->first << " - " << it->second->id << " : " << it->second->type << endl;
+	}
+	/*TreePrinter printer;
+	printer.visit(stmt);*/
     return 0;
 }
 

@@ -17,8 +17,9 @@ bool SymbolTable::isTypeDefined(string name)
 
 BlockSymbolTable* SymbolTable::addClass(std::shared_ptr<ClassNode> root) 
 {
+	if (!root) return nullptr;
 	std::string name = root->classname.lexem;
-	if (isTypeDefined(name)) {
+	if (!isTypeDefined(name)) {
 		//throw exception
 		return nullptr;
 	}

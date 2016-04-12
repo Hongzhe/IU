@@ -157,6 +157,7 @@
     <ClInclude Include="Lexer.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="Analyzer.cpp" />
     <ClCompile Include="IU.cpp" />
     <ClCompile Include="Lexer.cpp" />
     <ClCompile Include="Parser.cpp" />

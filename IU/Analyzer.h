@@ -3,7 +3,7 @@
 #include <vector>
 #include <map>
 #include <memory>
-#include "ast.h";
+#include "ast.h"
 #include "SymbolTable.h"
 /*symbol table entry*/
 
@@ -27,29 +27,11 @@ public:
 		void visit(std::shared_ptr<BinaryExpression>);
 	};
 	SymbolTable* table;
-	Analyzer(){
-		table = new SymbolTable();
-	}
-
-	void analyze(std::shared_ptr<ASTNode>);
+	Analyzer();
+	void prepare();
+	void analyze(std::shared_ptr<ClassNode>);
 	
 };
 
-void Analyzer::AnalyzerVisitor::visit(std::shared_ptr<ClassNode> root)
-{
-	std::string name = root->classname.lexem;
-	table->addClass(root);
-}
-
-void Analyzer::AnalyzerVisitor::visit(std::shared_ptr<Formal> node)
-{
-	std::string id = node->id.lexem;
-	std::string type =  node->type.lexem;
-	if (!table->isTypeDefined(type)) 
-	{
-		//throw expcetion
-	}
-
-}
 
 
