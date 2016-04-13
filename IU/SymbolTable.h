@@ -2,10 +2,12 @@
 #include <string>
 #include <map>
 #include <memory>
+#include <vector>
 #include "ast.h"
 
 enum BLOCK_TYPE {
-	CLASS_BLOCK, METHOD_BLOCK, STMT_BLOCK
+	CLASS_BLOCK, METHOD_BLOCK, STMT_BLOCK,
+	LOOP_BLOCK, IF_BLOCK
 };
 enum SYMBOL_TYPE {
 	OBJECT, METHOD
@@ -23,22 +25,34 @@ public:
 	std::string id;
 	std::string type;
 	SYMBOL_TYPE symbol_type;
+	int index;
 };
 
 class BlockSymbolTable
 {
 public:
+	int index; //index of inner scope
+	
+	std::string parentclass;
+
 	BLOCK_TYPE block_type;
 
 	BlockSymbolTable* prev; //point to closest outer scope
 	
+	std::vector<BlockSymbolTable*> children; //inner scopes
+
 	std::map<std::string, Symbol*> table;
 
 	/*find out if a variable is defined in current scope and outer scopes*/
 	bool isVariableDeclaredBefore(std::string name);
 	
 	/*find out if a variable defined in current scope*/
-	bool isVariableDeclared(std::string name) { return table.find(name) == table.cend(); }
+	bool isVariableDeclared(std::string name);
+
+	static void printBlockSymbolTable(BlockSymbolTable*);
+
+	/* Given symbol name, find out the symbol belongs to most most inner scope */
+	Symbol* lookupSymbolByName(std::string name);
 }; 
 
 class SymbolTable
@@ -68,5 +82,7 @@ public:
 	bool isTypeDefined(std::string name);
 
 	BlockSymbolTable* addClass(std::shared_ptr<ClassNode>);
+
+	void printSymbolTable();
 };
 

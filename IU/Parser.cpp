@@ -38,12 +38,12 @@ shared_ptr<ClassNode> Parser::parse_class() {
 	auto node = make_shared<ClassNode>();
 	token = lexer.getToken();
 	if (token.lexem != "class") {
-		syntax_error("class", token, lexer);
+		Error::syntax_error("class", token, lexer);
 		return nullptr;
 	}
 	token = lexer.getToken();
 	if (token.type != TK_TYPE_ID) {
-		syntax_error("TYPE ID", token, lexer);
+		Error::syntax_error("TYPE ID", token, lexer);
 		return nullptr;
 	}
 	node->classname = token;
@@ -52,7 +52,7 @@ shared_ptr<ClassNode> Parser::parse_class() {
 	if (token.lexem == "inherits") {
 		token = lexer.getToken();
 		if (token.type != TK_TYPE_ID) {
-			syntax_error("TYPE_ID", token, lexer);
+			Error::syntax_error("TYPE_ID", token, lexer);
 			return nullptr;
 		}
 		node->parentname = token.lexem;
@@ -60,7 +60,7 @@ shared_ptr<ClassNode> Parser::parse_class() {
 	else { lexer.unget(); }
 	token = lexer.getToken();
 	if (token.type != TK_LEFT_BRAC) {
-		syntax_error("{", token, lexer);
+		Error::Error::syntax_error("{", token, lexer);
 		return nullptr;
 	}
 	vector<shared_ptr<MethodDefinition>> methods;
@@ -90,7 +90,7 @@ shared_ptr<ClassNode> Parser::parse_class() {
 	node->methods = methods;
 	token = lexer.getToken();
 	if (token.type != TK_RIGHT_BRAC) {
-		syntax_error("}", token, lexer);
+		Error::syntax_error("}", token, lexer);
 		return nullptr;
 	}
 	return node;
@@ -135,13 +135,13 @@ shared_ptr<MethodDefinition> Parser::parse_method()
 	node->node_type = METHOD_DEFINE_STMT;
 	Token token = lexer.getToken();
 	if (token.type != TK_TYPE_ID) {
-		syntax_error("TYPE_ID", token, lexer);
+		Error::syntax_error("TYPE_ID", token, lexer);
 		return nullptr;
 	}
 	node->returntype = token;
 	token = lexer.getToken();
 	if (token.type != TK_OBJ_ID) {
-		syntax_error("OBJ_ID", token, lexer);
+		Error::syntax_error("OBJ_ID", token, lexer);
 		return nullptr;
 	}
 	node->name = token;
@@ -173,7 +173,7 @@ shared_ptr<BlockStatement> Parser::parse_block_statement()
 	vector<shared_ptr<Statement>> statements;
 	token = lexer.getToken();
 	if (token.type != TK_LEFT_BRAC) {
-		//syntax_error("{", token, lexer);
+		//Error::syntax_error("{", token, lexer);
 		lexer.unget();
 		return nullptr;
 	}
@@ -188,6 +188,9 @@ shared_ptr<BlockStatement> Parser::parse_block_statement()
 		token = lexer.getToken();
 		if (token.type == TK_RIGHT_BRAC) {
 			break;
+		}
+		else {
+			lexer.unget();
 		}
 	}
 	node->stmts = statements;
@@ -244,7 +247,7 @@ shared_ptr<WhileStatement> Parser::parse_while_stmt()
 	}
 	token = lexer.getToken();
 	if (token.type != TK_LEFT_PRAN) {
-		syntax_error("(", token, lexer);
+		Error::syntax_error("(", token, lexer);
 		lexer.unget();
 		return nullptr;
 	}
@@ -252,7 +255,7 @@ shared_ptr<WhileStatement> Parser::parse_while_stmt()
 	node->condition = condition;
 	token = lexer.getToken();
 	if (token.type != TK_RIGHT_PRAN) {
-		syntax_error(")", token, lexer);
+		Error::syntax_error(")", token, lexer);
 		lexer.unget();
 		return nullptr;
 	}
@@ -276,14 +279,14 @@ shared_ptr<IfStatement> Parser::parse_if_stmt()
 		
 	token = lexer.getToken();
 	if (token.type != TK_LEFT_PRAN) {
-		syntax_error("(", token, lexer);
+		Error::syntax_error("(", token, lexer);
 		return nullptr;
 	}
 		
 	shared_ptr<Expression> condition = parse_expression();
 	token = lexer.getToken();
 	if (token.type != TK_RIGHT_PRAN) {
-		syntax_error(")", token, lexer);
+		Error::syntax_error(")", token, lexer);
 		return nullptr;
 	}
 		
@@ -376,7 +379,7 @@ std::unique_ptr<PranExpression> Parser::parse_parn_exp()
 	node->exp  = parse_expression();
 	token = lexer.getToken();
 	if (token.type != TK_RIGHT_PRAN) {
-		syntax_error(")", token, lexer);
+		Error::syntax_error(")", token, lexer);
 		node = nullptr;
 	}
 	return node;
@@ -398,7 +401,7 @@ vector<shared_ptr<Expression>> Parser::parse_arguments()
 		}
 		auto argument = parse_expression();
 		if (!argument) {
-			//syntax_error("expression", token, lexer);
+			//Error::syntax_error("expression", token, lexer);
 			break;
 		}
 		arguments.push_back(argument);
@@ -412,7 +415,7 @@ shared_ptr<ClassCreatorExpression> Parser::parse_creator()
 	token = lexer.getToken();
 	if (token.type != TK_TYPE_ID) {
 		lexer.unget();
-		syntax_error("TYPE_ID", token, lexer);
+		Error::syntax_error("TYPE_ID", token, lexer);
 		return nullptr;
 	}
 	shared_ptr<ClassCreatorExpression> node = make_shared<ClassCreatorExpression>();
@@ -420,14 +423,14 @@ shared_ptr<ClassCreatorExpression> Parser::parse_creator()
 	node->name = token;
 	token = lexer.getToken();
 	if (token.type != TK_LEFT_PRAN) {
-		syntax_error("(", token, lexer);
+		Error::syntax_error("(", token, lexer);
 		lexer.unget();
 		return nullptr;
 	}
 	vector<shared_ptr<Expression>> arguments = parse_arguments();
 	token = lexer.getToken();
 	if (token.type != TK_RIGHT_PRAN) {
-		syntax_error(")", token, lexer);
+		Error::syntax_error(")", token, lexer);
 		return nullptr;
 	}
 	node->arguments = arguments;
@@ -444,7 +447,7 @@ shared_ptr<MethodInvocationExpression> Parser::parse_method_invocation()
 	vector<shared_ptr<Expression>> arguments = parse_arguments();
 	token = lexer.getToken();
 	if (token.type != TK_RIGHT_PRAN) {
-		syntax_error(")", token, lexer);
+		Error::syntax_error(")", token, lexer);
 		return nullptr;
 	}
 	node->arguments = arguments;

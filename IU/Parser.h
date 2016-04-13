@@ -32,11 +32,7 @@ private:
 
 	std::unique_ptr<PranExpression> Parser::parse_parn_exp();
 
-	//std::shared_ptr<Expression> Parser::parse_expression();
-
 	std::shared_ptr<Formal> parse_formal();
-
-	//std::shared_ptr<Statement> parse_statement();
 
 	std::shared_ptr<Statement> Parser::parse_exp_statement();
 
@@ -55,10 +51,15 @@ private:
 	
 public:
 	Token token;
+	
 	Parser();
+	
 	std::shared_ptr<ClassNode> parse();
+	
 	void prepare(std::string filename);
+	
 	std::shared_ptr<Expression> Parser::parse_expression();
+
 	std::shared_ptr<Statement> parse_statement();
 };
 

@@ -9,13 +9,14 @@
 #include "LexerException.h"
 #include "Parser.h"
 #include "SymbolTable.h"
+#include "Analyzer.h"
 
 using namespace std;
 
 int main()
 {
 /*	Lexer iuLexer;
-	iuLexer.openFile("c:/code/IU/test/exp_test.IU");
+	iuLexer.openFile("d:/code/IU/test/class.IU");
 	Token token;
 	while (iuLexer.state != EOF_STATE) {
 		token = iuLexer.getToken();
@@ -23,14 +24,17 @@ int main()
 	}
 */
 	Parser parser;
-	parser.prepare("c:/code/IU/test/class_test.IU");
+	parser.prepare("d:/code/IU/test/class.IU");
 	shared_ptr<ClassNode> stmt = parser.parse();
-	SymbolTable* table = new SymbolTable();
+	
+	/*SymbolTable* table = new SymbolTable();
 	BlockSymbolTable* sb = table->addClass(stmt);
-	auto sbmap = sb->table;
-	for (auto it = sbmap.cbegin(); it != sbmap.cend(); ++it) {
-		cout << it->first << " - " << it->second->id << " : " << it->second->type << endl;
-	}
+	table->printSymbolTable();*/
+	Analyzer analzyer;
+	BlockSymbolTable* classtable = analzyer.analyze(stmt);
+	BlockSymbolTable::printBlockSymbolTable(classtable);
+
+
 	/*TreePrinter printer;
 	printer.visit(stmt);*/
     return 0;
