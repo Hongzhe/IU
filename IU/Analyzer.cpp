@@ -61,17 +61,94 @@ void Analyzer::analyze_statement(std::shared_ptr<Statement> node, BlockSymbolTab
 	switch (node->node_type)
 	{
 	case EXP_STMT:
-		
+		analyze_exp_stmt(dynamic_pointer_cast<ExpStatement>(node), parent_scope);
+		break;
+	case IF_STMT:
+		analyze_if_stmt(dynamic_pointer_cast<IfStatement>(node), parent_scope);
+		break;
+	case WHILE_STMT:
+		analyze_while_stmt(dynamic_pointer_cast<WhileStatement>(node), parent_scope);
+		break;
+	case BLOCK_STMT:
+		analyze_block_stmt(dynamic_pointer_cast<BlockStatement>(node), parent_scope);
 		break;
 	}
 }
+void Analyzer::analyze_block_stmt(std::shared_ptr<BlockStatement> node, BlockSymbolTable* scope)
+{
+	auto stmts = node->stmts;
+	for (auto it = stmts.cbegin(); it != stmts.cend(); ++it)
+	{
+		analyze_statement(*it,scope);
+	}
+}
+
+void Analyzer::analyze_if_stmt(std::shared_ptr<IfStatement> node, BlockSymbolTable* scope)
+{
+	auto condition = node->condition;
+	bool conditionval = isBooleanValue(condition, scope);
+	auto block = node->block;
+	//TODO analyze block statement
+	if (node->elsepart) {
+		//TODO analyze else block
+	}
+}
+
+void Analyzer::analyze_while_stmt(std::shared_ptr<WhileStatement> node, BlockSymbolTable* scope)
+{
+	auto condition = node->condition;
+	bool conditionval = isBooleanValue(condition, scope);
+	auto block = node->block;
+}
+
+bool Analyzer::isBooleanValue(std::shared_ptr<Expression> node, BlockSymbolTable* scope)
+{
+	if (node->node_type == CREATOR_EXP) { return false; }
+	if (node->node_type == METHOD_INVOC_EXP) {
+		auto exp = dynamic_pointer_cast<MethodInvocationExpression>(node);
+		Symbol* symbol = scope->lookupSymbolByName(exp->name.lexem);
+		if (!symbol) return false;
+		if (symbol->type != "Bool") return false;
+	}
+	else if (node->node_type == LITERAL_EXP) {
+		auto exp = dynamic_pointer_cast<LiteralExpression>(node);
+		string lexem = exp->token.lexem;
+		if (lexem != "false" && lexem != "true") return false;
+	}
+	else if (node->node_type == BINARY_EXP) {
+		auto exp = dynamic_pointer_cast<BinaryExpression>(node);
+		Token op = exp->op;
+		if (op.type != TK_EQ || op.type != TK_LE || op.type != TK_LEQ ||
+			op.type != TK_GT || op.type != TK_GEQ) {
+			return false;
+		}
+		//TODO
+		return isEligibleForArithmetic(exp->left, scope) && isEligibleForArithmetic(exp->right, scope);
+	}
+	else if (node->node_type == PRAN_EXP) {
+		auto exp = dynamic_pointer_cast<PranExpression>(node);
+		return isBooleanValue(exp, scope);
+	}
+	return true;
+}
+
+
 
 void Analyzer::analyze_exp_stmt(std::shared_ptr<ExpStatement> node, BlockSymbolTable* scope)
 {
 	shared_ptr<Expression> expression = node->expression;
-	if (expression->node_type == BINARY_EXP) {
-		auto exp = dynamic_pointer_cast<BinaryExpression>(expression);
-		analyze_binary_exp(exp, scope);
+	switch (expression->node_type)
+	{
+	case BINARY_EXP:
+		analyze_binary_exp(dynamic_pointer_cast<BinaryExpression>(expression), scope);
+		break;
+	case METHOD_INVOC_EXP:
+		validateMethodInvocation(dynamic_pointer_cast<MethodInvocationExpression>(expression), scope);
+		break;
+	case CREATOR_EXP:
+		break;
+	case PRAN_EXP:
+		break;
 	}
 }
 
@@ -94,6 +171,9 @@ void Analyzer::analyze_binary_exp(std::shared_ptr<BinaryExpression> node, BlockS
 			Error::semantical_operator_incompitable(op.lexem);
 			return;
 		}
+	}
+	else if (op.type == TK_EQ) {
+		//TODO
 	}
 }
 
@@ -176,6 +256,7 @@ bool Analyzer::canBeAssign(shared_ptr<Expression> left, shared_ptr<Expression> r
 		if (left_symbol->type != symbol->type) {
 			return false;
 		}
+		//TODO validate method invocation
 	}
 	return true;
 }
@@ -208,6 +289,14 @@ bool Analyzer::isEligibleForArithmetic(std::shared_ptr<Expression> node, BlockSy
 		if (symbol->type == "Int") {
 			return true;
 		}
+	}
+	else if (node->node_type == PRAN_EXP) {
+		auto exp = dynamic_pointer_cast<PranExpression>(node);
+		return isEligibleForArithmetic(exp->exp,scope);
+	}
+	else if (node->node_type == BINARY_EXP) {
+		auto exp = dynamic_pointer_cast<BinaryExpression>(node);
+		return isEligibleForArithmetic(exp->left, scope) && isEligibleForArithmetic(exp->right, scope);
 	}
 	return false;
 }

@@ -33,11 +33,21 @@ private:
 
 	bool isEligibleForArithmetic(std::shared_ptr<Expression> node, BlockSymbolTable* scope);
 
+	bool isEligibleForComparsion(std::shared_ptr<Expression> node, BlockSymbolTable* scope);
+
+	bool Analyzer::isBooleanValue(std::shared_ptr<Expression> node, BlockSymbolTable* scope);
+
 	void analyze_method(std::shared_ptr<MethodDefinition> node);
 
 	void analyze_statement(std::shared_ptr<Statement>, BlockSymbolTable* );
 
 	void analyze_exp_stmt(std::shared_ptr<ExpStatement> node, BlockSymbolTable* scope);
+
+	void Analyzer::analyze_if_stmt(std::shared_ptr<IfStatement> node, BlockSymbolTable* scope);
+
+	void Analyzer::analyze_while_stmt(std::shared_ptr<WhileStatement> node, BlockSymbolTable* scope);
+	
+	void Analyzer::analyze_block_stmt(std::shared_ptr<BlockStatement> node, BlockSymbolTable* scope);
 
 	void Analyzer::analyze_binary_exp(std::shared_ptr<BinaryExpression> node, BlockSymbolTable* scope);
 	
