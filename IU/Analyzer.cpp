@@ -24,19 +24,25 @@ void Analyzer::prepare()
 //start to analyze a class
 BlockSymbolTable* Analyzer::analyze(std::shared_ptr<ClassNode> root)
 {
-	BlockSymbolTable* class_block = table->addClass(root); //add symbols of this class into symbol table;
+	BlockSymbolTable* class_block = table->addClass(root); //add symbols inside this class into symbol table;
 	if (!class_block) {
 		return nullptr;
 	}
 	current_table = class_block;
 	classNodes[root->classname.lexem] = root;
 	curClassNode = root;
-	if (root->parentname != "") { //parent class is not defined.
+	if (root->parentname != "") { 
 		if (!table->isTypeDefined(root->parentname)) {
 			//throw exception
 			Error::semantical_undefined_var_error(root->parentname);
 			return nullptr;
 		}
+	}
+	auto fields = root->fields;
+
+	auto methods = root->methods;
+	for (auto it = methods.cbegin(); it != methods.cend(); ++it) {
+		analyze_method(*it);
 	}
 	return class_block;
 }
@@ -86,53 +92,27 @@ void Analyzer::analyze_block_stmt(std::shared_ptr<BlockStatement> node, BlockSym
 void Analyzer::analyze_if_stmt(std::shared_ptr<IfStatement> node, BlockSymbolTable* scope)
 {
 	auto condition = node->condition;
-	bool conditionval = isBooleanValue(condition, scope);
-	auto block = node->block;
-	//TODO analyze block statement
+	string ctype = deduceTypeFromExpression(node->condition, scope);
+	if (ctype != "Bool") {
+		Error::semantical_condition_exp(ctype);
+		return;
+	}
+	analyze_block_stmt(node->block, scope);
 	if (node->elsepart) {
-		//TODO analyze else block
+		analyze_block_stmt(node->elsepart, scope);
 	}
 }
 
 void Analyzer::analyze_while_stmt(std::shared_ptr<WhileStatement> node, BlockSymbolTable* scope)
 {
 	auto condition = node->condition;
-	bool conditionval = isBooleanValue(condition, scope);
-	auto block = node->block;
+	string ctype = deduceTypeFromExpression(node->condition, scope);
+	if (ctype != "Bool") {
+		Error::semantical_condition_exp(ctype);
+		return;
+	}
+	analyze_block_stmt(node->block, scope);
 }
-
-bool Analyzer::isBooleanValue(std::shared_ptr<Expression> node, BlockSymbolTable* scope)
-{
-	if (node->node_type == CREATOR_EXP) { return false; }
-	if (node->node_type == METHOD_INVOC_EXP) {
-		auto exp = dynamic_pointer_cast<MethodInvocationExpression>(node);
-		Symbol* symbol = scope->lookupSymbolByName(exp->name.lexem);
-		if (!symbol) return false;
-		if (symbol->type != "Bool") return false;
-	}
-	else if (node->node_type == LITERAL_EXP) {
-		auto exp = dynamic_pointer_cast<LiteralExpression>(node);
-		string lexem = exp->token.lexem;
-		if (lexem != "false" && lexem != "true") return false;
-	}
-	else if (node->node_type == BINARY_EXP) {
-		auto exp = dynamic_pointer_cast<BinaryExpression>(node);
-		Token op = exp->op;
-		if (op.type != TK_EQ || op.type != TK_LE || op.type != TK_LEQ ||
-			op.type != TK_GT || op.type != TK_GEQ) {
-			return false;
-		}
-		//TODO
-		return isEligibleForArithmetic(exp->left, scope) && isEligibleForArithmetic(exp->right, scope);
-	}
-	else if (node->node_type == PRAN_EXP) {
-		auto exp = dynamic_pointer_cast<PranExpression>(node);
-		return isBooleanValue(exp, scope);
-	}
-	return true;
-}
-
-
 
 void Analyzer::analyze_exp_stmt(std::shared_ptr<ExpStatement> node, BlockSymbolTable* scope)
 {
@@ -148,7 +128,29 @@ void Analyzer::analyze_exp_stmt(std::shared_ptr<ExpStatement> node, BlockSymbolT
 	case CREATOR_EXP:
 		break;
 	case PRAN_EXP:
+		
 		break;
+	}
+}
+
+void Analyzer::analyze_expression(std::shared_ptr<Expression> node, BlockSymbolTable* scope)
+{
+	switch (node->node_type)
+	{
+	case BINARY_EXP:
+		analyze_binary_exp(dynamic_pointer_cast<BinaryExpression>(node), scope);
+		break;
+	case METHOD_INVOC_EXP:
+		validateMethodInvocation(dynamic_pointer_cast<MethodInvocationExpression>(node), scope);
+		break;
+	case CREATOR_EXP:
+		break;
+	case PRAN_EXP:
+	{
+		auto exp = dynamic_pointer_cast<PranExpression>(node);
+		analyze_expression(exp->exp, scope);
+		break;
+	}
 	}
 }
 
@@ -160,8 +162,8 @@ void Analyzer::analyze_binary_exp(std::shared_ptr<BinaryExpression> node, BlockS
 	if (op.type == TK_ADD || op.type == TK_MINUS || op.type == TK_DIVID
 		|| op.type == TK_MULTIPLY || op.type == TK_MOD || op.type == TK_LE || op.type == TK_LEQ
 		|| op.type == TK_GT || op.type == TK_GEQ) {
-		if (!isEligibleForArithmetic(left, scope) ||
-			!isEligibleForArithmetic(right, scope)) {
+		if (deduceTypeFromExpression(left, scope) != "Int" ||
+			deduceTypeFromExpression(right, scope) != "Int") {
 			Error::semantical_operator_incompitable(op.lexem);
 			return;
 		}
@@ -221,7 +223,11 @@ bool Analyzer::validateMethodInvocation(shared_ptr<MethodInvocationExpression> n
 		shared_ptr<Formal> define = arg_define[i];
 		shared_ptr<Expression> given = arguments[i];
 		//type should matched
-
+		string defined_type = define->type.lexem;
+		string given_type = deduceTypeFromExpression(given, scope);
+		if (defined_type != given_type) {
+			Error::semantical_method_argument_incompatibal(m->name.lexem, defined_type, given_type);
+		}
 	}
 }
 
@@ -230,73 +236,79 @@ bool Analyzer::canBeAssign(shared_ptr<Expression> left, shared_ptr<Expression> r
 	if (!isValidLeftVal(left)) {
 		return false;
 	}
-	auto lnode = dynamic_pointer_cast<LiteralExpression>(left);
-	string lid = lnode->token.lexem;
-	//looking for type of left val.
-	Symbol* left_symbol = scope->lookupSymbolByName(lnode->token.lexem);
-	if (!left_symbol) {
-		Error::semantical_undefined_var_error(lnode->token.lexem);
-		return false;
-	}
-	//now let's check the right value.
-	if (right->node_type == CREATOR_EXP) {
-		auto node = dynamic_pointer_cast<ClassCreatorExpression>(right);
-		string classname = node->name.lexem;
-		if (left_symbol->type != classname) {
-			return false;
-		}
-	}
-	else if (right->node_type == METHOD_INVOC_EXP) {
-		auto node = dynamic_pointer_cast<MethodInvocationExpression>(right);
-		Symbol* symbol = scope->lookupSymbolByName(node->name.lexem);
-		if (!symbol) {
-			Error::semantical_method_undefined_error(node->name.lexem);
-			return false;
-		}
-		if (left_symbol->type != symbol->type) {
-			return false;
-		}
-		//TODO validate method invocation
-	}
-	return true;
+	string ltype = deduceTypeFromExpression(left, scope);
+	string rtype = deduceTypeFromExpression(right, scope);
+	return ltype == rtype;
 }
 
-bool Analyzer::isEligibleForArithmetic(std::shared_ptr<Expression> node, BlockSymbolTable* scope)
+string Analyzer::deduceTypeFromExpression(std::shared_ptr<Expression> node, BlockSymbolTable* scope)
 {
 	if (node->node_type == LITERAL_EXP) {
 		auto exp = dynamic_pointer_cast<LiteralExpression>(node);
 		Token token = exp->token;
 		if (token.type == TK_INT_CONST) {
-			return true;
+			return "Int";
+		}
+		else if (token.type == TK_STR_CONST) {
+			return "String";
+		}
+		else if (token.lexem == "true" || token.lexem == "false") {
+			return "Bool";
 		}
 		else if (token.type == TK_OBJ_ID) {
-			//lookup table  TODO
-			Symbol* symbol = scope->table[token.lexem];
-			if (symbol->type == "Int") {
-				return true;
+			Symbol* symbol = scope->lookupSymbolByName(token.lexem);
+			if (symbol) {
+				return symbol->type;
 			}
+			Error::semantical_undefined_var_error(token.lexem);
+			return ""; // symbol is null;
 		}
 	}
-	else if (node->node_type == METHOD_INVOC_EXP)
-	{
+	else if (node->node_type == METHOD_INVOC_EXP) {
 		auto exp = dynamic_pointer_cast<MethodInvocationExpression>(node);
 		string name = exp->name.lexem;
 		//lookup symbol table for method with this name and then check its return type.
 		if (!current_table->isVariableDeclared(name)) {
 			Error::semantical_method_undefined_error(name);
 		}
-		Symbol* symbol = current_table->table[name];
-		if (symbol->type == "Int") {
-			return true;
+		Symbol* symbol = scope->lookupSymbolByName(name);
+		if (symbol) {
+			return symbol->type;
 		}
+		Error::semantical_undefined_var_error(name);
+		return "";
+	}
+	else if (node->node_type == CREATOR_EXP) {
+		auto exp = dynamic_pointer_cast<ClassCreatorExpression>(node);
+		return exp->name.lexem;
 	}
 	else if (node->node_type == PRAN_EXP) {
 		auto exp = dynamic_pointer_cast<PranExpression>(node);
-		return isEligibleForArithmetic(exp->exp,scope);
+		return deduceTypeFromExpression(exp->exp, scope);
 	}
 	else if (node->node_type == BINARY_EXP) {
 		auto exp = dynamic_pointer_cast<BinaryExpression>(node);
-		return isEligibleForArithmetic(exp->left, scope) && isEligibleForArithmetic(exp->right, scope);
+		string lefttype = deduceTypeFromExpression(exp->left, scope);
+		string righttype = deduceTypeFromExpression(exp->right, scope);
+		Token op = exp->op;
+		if (op.type == TK_ADD || op.type == TK_MINUS || op.type == TK_DIVID
+			|| op.type == TK_MULTIPLY || op.type == TK_MOD) {
+			if (lefttype == "Int" && righttype == "Int") return "Int";
+			else {
+				Error::semantical_operator_incompitable(op.lexem);
+				return "";
+			}
+		}
+		else if (op.type == TK_LE || op.type == TK_LEQ
+			|| op.type == TK_GT || op.type == TK_GEQ || op.type == TK_EQ) {
+			if (lefttype == "Int" && righttype == "Int") return "Bool";
+			else {
+				Error::semantical_operator_incompitable(op.lexem);
+				return "";
+			}
+		}
+		else if (op.type == TK_ASSIGN) {
+			return "";
+		}
 	}
-	return false;
 }

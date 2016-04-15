@@ -31,11 +31,8 @@ private:
 
 	std::map<std::string, std::shared_ptr<ClassNode>> classNodes;
 
-	bool isEligibleForArithmetic(std::shared_ptr<Expression> node, BlockSymbolTable* scope);
-
-	bool isEligibleForComparsion(std::shared_ptr<Expression> node, BlockSymbolTable* scope);
-
-	bool Analyzer::isBooleanValue(std::shared_ptr<Expression> node, BlockSymbolTable* scope);
+	//deduce type from expression
+	std::string deduceTypeFromExpression(std::shared_ptr<Expression> node, BlockSymbolTable* scope);
 
 	void analyze_method(std::shared_ptr<MethodDefinition> node);
 
@@ -51,6 +48,7 @@ private:
 
 	void Analyzer::analyze_binary_exp(std::shared_ptr<BinaryExpression> node, BlockSymbolTable* scope);
 	
+	void Analyzer::analyze_expression(std::shared_ptr<Expression> node, BlockSymbolTable* scope);
 
 	/* determine if right value can be assigned to left object */
 	bool Analyzer::canBeAssign(std::shared_ptr<Expression> left, std::shared_ptr<Expression> right, BlockSymbolTable* scope);

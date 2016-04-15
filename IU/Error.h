@@ -51,6 +51,16 @@ public:
 	{
 		std::cerr << name << " requires " << n << "parameters instead of " << m << std::endl;
 	}
+	
+	static void semantical_method_argument_incompatibal(std::string method, std::string& expect, std::string& given)
+	{
+		std::cerr << method << "expect " << expect << "but given " << given << std::endl;
+	}
+
+	static void semantical_condition_exp(std::string& given)
+	{
+		std::cerr << "condition expression should be a Bool value instead of " << given << std::endl;
+	}
 };
 
 
