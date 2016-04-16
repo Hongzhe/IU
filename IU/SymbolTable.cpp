@@ -128,7 +128,6 @@ Symbol* SymbolTable::addExpStatement(shared_ptr<ExpStatement> node, BlockSymbolT
 			Error::semantical_undefined_var_error(n->type.lexem);
 			return nullptr;
 		}
-
 		if (scope->isVariableDeclared(n->id.lexem)) {
 			//throw exception and report an error.
 			Error::semantical_duplicate_var_error(n->id.lexem);
@@ -138,6 +137,24 @@ Symbol* SymbolTable::addExpStatement(shared_ptr<ExpStatement> node, BlockSymbolT
 		symbol->lineno = n->lineno;
 		scope->table[symbol->id] = symbol;
 		return symbol;
+	}
+	else if (exp->node_type == BINARY_EXP) {
+		auto n = dynamic_pointer_cast<BinaryExpression>(exp);
+		if (n->op.type != TK_ASSIGN) return nullptr;
+		if (n->left->node_type == VAR_DECL_EXP) {
+			auto var = dynamic_pointer_cast<VariableDeclareExpression>(n->left);
+			if (!isTypeDefined(var->type.lexem)) {
+				Error::semantical_undefined_type(var->type.lexem);
+				return nullptr;
+			}
+			if (scope->isVariableDeclaredBefore(var->id.lexem)) {
+				Error::semantical_duplicate_var_error(var->id.lexem);
+				return nullptr;
+			}
+			Symbol* symbol = new Symbol(var->id.lexem, var->type.lexem);
+			scope->table[symbol->id] = symbol;
+			return symbol;
+		}
 	}
 	return nullptr;
 }
@@ -170,7 +187,7 @@ bool BlockSymbolTable::isVariableDeclaredBefore(std::string name)
 {
 	auto tmp = this;
 	while (tmp) {
-		if (tmp->table.find(name) == tmp->table.cend()) {
+		if (tmp->table.find(name) != tmp->table.cend()) {
 			return true;
 		}
 		tmp = tmp->prev;

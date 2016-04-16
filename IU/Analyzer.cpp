@@ -41,7 +41,7 @@ BlockSymbolTable* Analyzer::analyze(std::shared_ptr<ClassNode> root)
 	auto fields = root->fields;
 	for (auto field_it = fields.cbegin(); field_it != fields.cend(); ++field_it)
 	{
-		analyze_fields(*field_it);
+		analyze_field(*field_it);
 	}
 	auto methods = root->methods;
 	for (auto it = methods.cbegin(); it != methods.cend(); ++it) {
@@ -50,15 +50,16 @@ BlockSymbolTable* Analyzer::analyze(std::shared_ptr<ClassNode> root)
 	return class_block;
 }
 
-void Analyzer::analyze_fields(std::shared_ptr<Formal> node)
+void Analyzer::analyze_field(std::shared_ptr<Formal> node)
 {
 	if (!table->isTypeDefined(node->type.lexem)) {
 		Error::semantical_undefined_type(node->type.lexem, node->lineno);
 		return;
 	}
+
 	analyze_expression(node->val, current_table);
 	string val_type = deduceTypeFromExpression(node->val, current_table);
-	if (node->type.lexem != val_type) {
+	if (node->val && node->type.lexem != val_type) {
 		Error::semantical_assign_incompatible_type(node->type.lexem, val_type, node->lineno);
 		return;
 	}
@@ -66,11 +67,20 @@ void Analyzer::analyze_fields(std::shared_ptr<Formal> node)
 
 void Analyzer::analyze_method(std::shared_ptr<MethodDefinition> node)
 {
+	if (!table->isTypeDefined(node->returntype.lexem)) {
+		Error::semantical_undefined_type(node->returntype.lexem, node->lineno);
+		return;
+	}
 	shared_ptr<BlockStatement> blockstmt = node->block;
 	vector<shared_ptr<Statement>> stmts = blockstmt->stmts;
 	Symbol* symbol = current_table->table[node->name.lexem];
 	BlockSymbolTable* scope = current_table->children[symbol->index];
 	parent_scope = scope;
+	auto parameters = node->arguments;
+	for (auto parameter_it = parameters.cbegin(); parameter_it != parameters.cend(); ++parameter_it)
+	{
+		analyze_field(*parameter_it);
+	}
 	//analyze stmts.
 	for (auto it = stmts.cbegin(); it != stmts.cend(); ++it)
 	{
@@ -97,6 +107,7 @@ void Analyzer::analyze_statement(std::shared_ptr<Statement> node, BlockSymbolTab
 		break;
 	}
 }
+
 void Analyzer::analyze_block_stmt(std::shared_ptr<BlockStatement> node, BlockSymbolTable* scope)
 {
 	auto stmts = node->stmts;
@@ -134,24 +145,12 @@ void Analyzer::analyze_while_stmt(std::shared_ptr<WhileStatement> node, BlockSym
 void Analyzer::analyze_exp_stmt(std::shared_ptr<ExpStatement> node, BlockSymbolTable* scope)
 {
 	shared_ptr<Expression> expression = node->expression;
-	switch (expression->node_type)
-	{
-	case BINARY_EXP:
-		analyze_binary_exp(dynamic_pointer_cast<BinaryExpression>(expression), scope);
-		break;
-	case METHOD_INVOC_EXP:
-		validateMethodInvocation(dynamic_pointer_cast<MethodInvocationExpression>(expression), scope);
-		break;
-	case CREATOR_EXP:
-		break;
-	case PRAN_EXP:
-		
-		break;
-	}
+	analyze_expression(expression, scope);
 }
 
 void Analyzer::analyze_expression(std::shared_ptr<Expression> node, BlockSymbolTable* scope)
 {
+	if (!node) return;
 	switch (node->node_type)
 	{
 	case BINARY_EXP:
@@ -196,23 +195,19 @@ void Analyzer::analyze_binary_exp(std::shared_ptr<BinaryExpression> node, BlockS
 	}
 }
 
-/*Only OBJ_ID can be on the left hand side.*/
-bool Analyzer::isValidLeftVal(std::shared_ptr<Expression> left) 
-{
+/*Only OBJ_ID and Forml can be on the left hand side of assignment operator.*/
+bool Analyzer::isValidLeftValForAssignment(std::shared_ptr<Expression> left) 
+{	
+	if (left->node_type == VAR_DECL_EXP)
+		return true;
 	if (left->node_type == LITERAL_EXP)
 	{
 		auto node = std::dynamic_pointer_cast<LiteralExpression>(left);
 		Token token = node->token;
-		if (token.type == TK_STR_CONST ||
-			token.type == TK_INT_CONST || token.lexem == "true"
-			|| token.lexem == "false") {
-			return false;
-		}
+		if (token.type == TK_OBJ_ID)
+			return true;
 	}
-	else {
-		return false;
-	}
-	return true;
+	return false;
 }
 
 void Analyzer::analyzer_creator(std::shared_ptr<ClassCreatorExpression> node, BlockSymbolTable* scope)
@@ -261,7 +256,7 @@ bool Analyzer::validateMethodInvocation(shared_ptr<MethodInvocationExpression> n
 
 bool Analyzer::canBeAssign(shared_ptr<Expression> left, shared_ptr<Expression> right, BlockSymbolTable* scope)
 {
-	if (!isValidLeftVal(left)) {
+	if (!isValidLeftValForAssignment(left)) {
 		return false;
 	}
 	string ltype = deduceTypeFromExpression(left, scope);
@@ -271,6 +266,7 @@ bool Analyzer::canBeAssign(shared_ptr<Expression> left, shared_ptr<Expression> r
 
 string Analyzer::deduceTypeFromExpression(std::shared_ptr<Expression> node, BlockSymbolTable* scope)
 {
+	if (!node) return "";
 	if (node->node_type == LITERAL_EXP) {
 		auto exp = dynamic_pointer_cast<LiteralExpression>(node);
 		Token token = exp->token;
@@ -338,6 +334,10 @@ string Analyzer::deduceTypeFromExpression(std::shared_ptr<Expression> node, Bloc
 		else if (op.type == TK_ASSIGN) {
 			return "";
 		}
-		return "";
 	}
+	else if (node->node_type == VAR_DECL_EXP) {
+		auto exp = dynamic_pointer_cast<VariableDeclareExpression>(node);
+		return exp->type.lexem;
+	}
+	return "";
 }

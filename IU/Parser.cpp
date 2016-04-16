@@ -154,8 +154,9 @@ shared_ptr<MethodDefinition> Parser::parse_method()
 		formals.push_back(formal);
 	while (true) {
 		token = lexer.getToken();
-		if (token.type != TK_COMMA)
+		if (token.type != TK_COMMA) {
 			break;
+		}
 		shared_ptr<Formal> f = parse_formal();
 		if (!f)
 			break;
@@ -179,20 +180,24 @@ shared_ptr<BlockStatement> Parser::parse_block_statement()
 		lexer.unget();
 		return nullptr;
 	}
-	while (true) {
-		shared_ptr<Statement> stmt = parse_statement();
-		if (stmt) {
-			statements.push_back(stmt);
-		}
-		else {
-			return nullptr;
-		}
-		token = lexer.getToken();
-		if (token.type == TK_RIGHT_BRAC) {
-			break;
-		}
-		else {
-			lexer.unget();
+	token = lexer.getToken();
+	if (token.type != TK_RIGHT_BRAC) {
+		lexer.unget();
+		while (true) {
+			shared_ptr<Statement> stmt = parse_statement();
+			if (stmt) {
+				statements.push_back(stmt);
+			}
+			else {
+				return nullptr;
+			}
+			token = lexer.getToken();
+			if (token.type == TK_RIGHT_BRAC) {
+				break;
+			}
+			else {
+				lexer.unget();
+			}
 		}
 	}
 	node->stmts = statements;
@@ -473,7 +478,7 @@ shared_ptr<Expression> Parser::parse_variable_declar()
 		lexer.unget();
 		return nullptr;
 	}
-	shared_ptr<VariableDeclareExpression> node = make_shared<VariableDeclareExpression>(type, token);
+	shared_ptr<VariableDeclareExpression> node = make_shared<VariableDeclareExpression>(token, type);
 	node->node_type = VAR_DECL_EXP;
 	node->lineno = lexer.getLineno();
 	return node;

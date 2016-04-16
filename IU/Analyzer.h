@@ -31,7 +31,7 @@ private:
 	//deduce type from expression
 	std::string deduceTypeFromExpression(std::shared_ptr<Expression> node, BlockSymbolTable* scope);
 	
-	void analyze_fields(std::shared_ptr<Formal> node);
+	void analyze_field(std::shared_ptr<Formal> node);
 
 	void analyze_method(std::shared_ptr<MethodDefinition> node);
 
@@ -54,7 +54,7 @@ private:
 	/* determine if right value can be assigned to left object */
 	bool canBeAssign(std::shared_ptr<Expression> left, std::shared_ptr<Expression> right, BlockSymbolTable* scope);
 
-	bool isValidLeftVal(std::shared_ptr<Expression> left);
+	bool isValidLeftValForAssignment(std::shared_ptr<Expression> left);
 
 	bool validateMethodInvocation(std::shared_ptr<MethodInvocationExpression> node, BlockSymbolTable* scope);
 };
