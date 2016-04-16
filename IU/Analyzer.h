@@ -5,14 +5,11 @@
 #include <memory>
 #include "ast.h"
 #include "SymbolTable.h"
-/*symbol table entry*/
 
-class AnalyzerVisitor;
 
 class Analyzer
 {
 public:
-	friend AnalyzerVisitor;
 
 	SymbolTable* table;
 
@@ -33,6 +30,8 @@ private:
 
 	//deduce type from expression
 	std::string deduceTypeFromExpression(std::shared_ptr<Expression> node, BlockSymbolTable* scope);
+	
+	void analyze_fields(std::shared_ptr<Formal> node);
 
 	void analyze_method(std::shared_ptr<MethodDefinition> node);
 
@@ -40,55 +39,24 @@ private:
 
 	void analyze_exp_stmt(std::shared_ptr<ExpStatement> node, BlockSymbolTable* scope);
 
-	void Analyzer::analyze_if_stmt(std::shared_ptr<IfStatement> node, BlockSymbolTable* scope);
+	void analyze_if_stmt(std::shared_ptr<IfStatement> node, BlockSymbolTable* scope);
 
-	void Analyzer::analyze_while_stmt(std::shared_ptr<WhileStatement> node, BlockSymbolTable* scope);
+	void analyze_while_stmt(std::shared_ptr<WhileStatement> node, BlockSymbolTable* scope);
 	
-	void Analyzer::analyze_block_stmt(std::shared_ptr<BlockStatement> node, BlockSymbolTable* scope);
+	void analyze_block_stmt(std::shared_ptr<BlockStatement> node, BlockSymbolTable* scope);
 
-	void Analyzer::analyze_binary_exp(std::shared_ptr<BinaryExpression> node, BlockSymbolTable* scope);
+	void analyze_binary_exp(std::shared_ptr<BinaryExpression> node, BlockSymbolTable* scope);
 	
-	void Analyzer::analyze_expression(std::shared_ptr<Expression> node, BlockSymbolTable* scope);
+	void analyze_expression(std::shared_ptr<Expression> node, BlockSymbolTable* scope);
 
+	void analyzer_creator(std::shared_ptr<ClassCreatorExpression> node, BlockSymbolTable* scope);
+	
 	/* determine if right value can be assigned to left object */
-	bool Analyzer::canBeAssign(std::shared_ptr<Expression> left, std::shared_ptr<Expression> right, BlockSymbolTable* scope);
+	bool canBeAssign(std::shared_ptr<Expression> left, std::shared_ptr<Expression> right, BlockSymbolTable* scope);
 
-	bool Analyzer::isValidLeftVal(std::shared_ptr<Expression> left);
+	bool isValidLeftVal(std::shared_ptr<Expression> left);
 
-	bool Analyzer::validateMethodInvocation(std::shared_ptr<MethodInvocationExpression> node, BlockSymbolTable* scope);
+	bool validateMethodInvocation(std::shared_ptr<MethodInvocationExpression> node, BlockSymbolTable* scope);
 };
 
-
-
-class AnalyzerVisitor : public IVisitor {
-private:
-	Analyzer* analyzer;
-
-	BlockSymbolTable* parent_scope;
-
-public:
-	AnalyzerVisitor(Analyzer* analyzer) : analyzer(analyzer) {}
-
-	bool AnalyzerVisitor::iseligibleForArithmetic(std::shared_ptr<Expression> node);
-
-	void visit(std::shared_ptr<ClassNode>);
-
-	void visit(std::shared_ptr<Formal>);
-	
-	void visit(std::shared_ptr<MethodDefinition>);
-	
-	void visit(std::shared_ptr<Statement>);
-	
-	void visit(std::shared_ptr<IfStatement>);
-	
-	void visit(std::shared_ptr<WhileStatement>);
-	
-	void visit(std::shared_ptr<BlockStatement>);
-	
-	void visit(std::shared_ptr<ExpStatement>);
-	
-	void visit(std::shared_ptr<Expression>);
-	
-	void visit(std::shared_ptr<BinaryExpression>);
-};
 

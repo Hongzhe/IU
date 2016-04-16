@@ -24,7 +24,7 @@ int main()
 	}
 */
 	Parser parser;
-	parser.prepare("d:/code/IU/test/class.IU");
+	parser.prepare("c:/code/IU/test/class_test.IU");
 	shared_ptr<ClassNode> stmt = parser.parse();
 	
 	/*SymbolTable* table = new SymbolTable();

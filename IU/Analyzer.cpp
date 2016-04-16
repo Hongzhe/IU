@@ -39,12 +39,29 @@ BlockSymbolTable* Analyzer::analyze(std::shared_ptr<ClassNode> root)
 		}
 	}
 	auto fields = root->fields;
-
+	for (auto field_it = fields.cbegin(); field_it != fields.cend(); ++field_it)
+	{
+		analyze_fields(*field_it);
+	}
 	auto methods = root->methods;
 	for (auto it = methods.cbegin(); it != methods.cend(); ++it) {
 		analyze_method(*it);
 	}
 	return class_block;
+}
+
+void Analyzer::analyze_fields(std::shared_ptr<Formal> node)
+{
+	if (!table->isTypeDefined(node->type.lexem)) {
+		Error::semantical_undefined_type(node->type.lexem, node->lineno);
+		return;
+	}
+	analyze_expression(node->val, current_table);
+	string val_type = deduceTypeFromExpression(node->val, current_table);
+	if (node->type.lexem != val_type) {
+		Error::semantical_assign_incompatible_type(node->type.lexem, val_type, node->lineno);
+		return;
+	}
 }
 
 void Analyzer::analyze_method(std::shared_ptr<MethodDefinition> node)
@@ -94,7 +111,7 @@ void Analyzer::analyze_if_stmt(std::shared_ptr<IfStatement> node, BlockSymbolTab
 	auto condition = node->condition;
 	string ctype = deduceTypeFromExpression(node->condition, scope);
 	if (ctype != "Bool") {
-		Error::semantical_condition_exp(ctype);
+		Error::semantical_condition_exp(ctype, node->lineno);
 		return;
 	}
 	analyze_block_stmt(node->block, scope);
@@ -108,7 +125,7 @@ void Analyzer::analyze_while_stmt(std::shared_ptr<WhileStatement> node, BlockSym
 	auto condition = node->condition;
 	string ctype = deduceTypeFromExpression(node->condition, scope);
 	if (ctype != "Bool") {
-		Error::semantical_condition_exp(ctype);
+		Error::semantical_condition_exp(ctype, node->lineno);
 		return;
 	}
 	analyze_block_stmt(node->block, scope);
@@ -198,6 +215,14 @@ bool Analyzer::isValidLeftVal(std::shared_ptr<Expression> left)
 	return true;
 }
 
+void Analyzer::analyzer_creator(std::shared_ptr<ClassCreatorExpression> node, BlockSymbolTable* scope)
+{
+	if (!table->isTypeDefined(node->name.lexem)) {
+		Error::semantical_undefined_type(node->name.lexem);
+		return;
+	}
+}
+
 bool Analyzer::validateMethodInvocation(shared_ptr<MethodInvocationExpression> node, BlockSymbolTable* scope)
 {
 	Symbol* symbol = scope->lookupSymbolByName(node->name.lexem);
@@ -215,10 +240,11 @@ bool Analyzer::validateMethodInvocation(shared_ptr<MethodInvocationExpression> n
 	}
 	vector<shared_ptr<Formal>> arg_define = m->arguments;
 	if (arguments.size() != arg_define.size()) {
-		Error::semantical_method_arguments_number(node->name.lexem, arg_define.size(), arguments.size());
+		Error::semantical_method_arguments_number(node->name.lexem, arg_define.size(), arguments.size(), node->lineno);
 		return false;
 	}
-	for (int i = 0; i < arg_define.size(); i++)
+	bool argumentsok = true;
+	for (int i = 0; i < (int)arg_define.size(); i++)
 	{
 		shared_ptr<Formal> define = arg_define[i];
 		shared_ptr<Expression> given = arguments[i];
@@ -226,9 +252,11 @@ bool Analyzer::validateMethodInvocation(shared_ptr<MethodInvocationExpression> n
 		string defined_type = define->type.lexem;
 		string given_type = deduceTypeFromExpression(given, scope);
 		if (defined_type != given_type) {
-			Error::semantical_method_argument_incompatibal(m->name.lexem, defined_type, given_type);
+			argumentsok = false;
+			Error::semantical_method_argument_incompatibal(m->name.lexem, defined_type, given_type, node->lineno);
 		}
 	}
+	return argumentsok;
 }
 
 bool Analyzer::canBeAssign(shared_ptr<Expression> left, shared_ptr<Expression> right, BlockSymbolTable* scope)
@@ -263,6 +291,7 @@ string Analyzer::deduceTypeFromExpression(std::shared_ptr<Expression> node, Bloc
 			Error::semantical_undefined_var_error(token.lexem);
 			return ""; // symbol is null;
 		}
+		return "";
 	}
 	else if (node->node_type == METHOD_INVOC_EXP) {
 		auto exp = dynamic_pointer_cast<MethodInvocationExpression>(node);
@@ -270,6 +299,7 @@ string Analyzer::deduceTypeFromExpression(std::shared_ptr<Expression> node, Bloc
 		//lookup symbol table for method with this name and then check its return type.
 		if (!current_table->isVariableDeclared(name)) {
 			Error::semantical_method_undefined_error(name);
+			return "";
 		}
 		Symbol* symbol = scope->lookupSymbolByName(name);
 		if (symbol) {
@@ -293,22 +323,21 @@ string Analyzer::deduceTypeFromExpression(std::shared_ptr<Expression> node, Bloc
 		Token op = exp->op;
 		if (op.type == TK_ADD || op.type == TK_MINUS || op.type == TK_DIVID
 			|| op.type == TK_MULTIPLY || op.type == TK_MOD) {
-			if (lefttype == "Int" && righttype == "Int") return "Int";
-			else {
-				Error::semantical_operator_incompitable(op.lexem);
-				return "";
-			}
+			if (lefttype == "Int" && righttype == "Int") 
+				return "Int";
+			Error::semantical_operator_incompitable(op.lexem);
+			return "";
 		}
 		else if (op.type == TK_LE || op.type == TK_LEQ
 			|| op.type == TK_GT || op.type == TK_GEQ || op.type == TK_EQ) {
-			if (lefttype == "Int" && righttype == "Int") return "Bool";
-			else {
-				Error::semantical_operator_incompitable(op.lexem);
-				return "";
-			}
+			if (lefttype == "Int" && righttype == "Int") 
+				return "Bool";
+			Error::semantical_operator_incompitable(op.lexem);
+			return "";
 		}
 		else if (op.type == TK_ASSIGN) {
 			return "";
 		}
+		return "";
 	}
 }

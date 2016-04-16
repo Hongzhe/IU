@@ -26,6 +26,7 @@ public:
 	std::string type;
 	SYMBOL_TYPE symbol_type;
 	int index;
+	int lineno;
 };
 
 class BlockSymbolTable
@@ -66,7 +67,7 @@ private:
 
 	BlockSymbolTable* addBlockScope(std::shared_ptr<BlockStatement> node, BlockSymbolTable* scope);
 
-	Symbol* SymbolTable::addStatement(std::shared_ptr<Statement> stmt, BlockSymbolTable* scope);
+	void SymbolTable::addStatement(std::shared_ptr<Statement> stmt, BlockSymbolTable* scope);
 
 	void SymbolTable::addFromIfStmt(std::shared_ptr<IfStatement> node, BlockSymbolTable* scope);
 

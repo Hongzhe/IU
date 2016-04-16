@@ -50,6 +50,8 @@ enum ASTNodeType {
 
 class ASTNode {
 public:
+	ASTNode(){}
+	ASTNode(unsigned int lineno, ASTNodeType type) : lineno(lineno), node_type(type) {}
 	unsigned int lineno;
 	ASTNodeType node_type;
 	virtual void accept(IVisitor* visitor) = 0;
@@ -98,6 +100,7 @@ public:
 
 class ClassCreatorExpression : public Expression {
 public:
+	ClassCreatorExpression(Token token) : name(token) {}
 	Token name;
 	std::vector<std::shared_ptr<Expression>>arguments;
 	void accept(IVisitor* visitor) { visitor->visit(std::shared_ptr<ClassCreatorExpression>(this)); }
@@ -105,6 +108,7 @@ public:
 
 class MethodInvocationExpression : public Expression {
 public:
+	MethodInvocationExpression(Token token):name(token) {}
 	Token name;
 	std::vector<std::shared_ptr<Expression>> arguments;
 	void accept(IVisitor* visitor) { visitor->visit(std::shared_ptr<MethodInvocationExpression>(this));}

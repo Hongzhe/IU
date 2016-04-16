@@ -105,6 +105,7 @@ shared_ptr<Formal> Parser::parse_formal()
 		return nullptr;
 	}
 	node->type = token;
+	node->lineno = lexer.getLineno();
 	token = lexer.getToken();
 	if (token.type != TK_OBJ_ID) {
 		lexer.unget();
@@ -145,6 +146,7 @@ shared_ptr<MethodDefinition> Parser::parse_method()
 		return nullptr;
 	}
 	node->name = token;
+	node->lineno = lexer.getLineno();
 	lexer.getToken(); //eat '('
 	vector<shared_ptr<Formal>> formals;
 	shared_ptr<Formal> formal = parse_formal();
@@ -238,13 +240,14 @@ shared_ptr<ExpStatement> Parser::parse_return_stmt()
 }
 shared_ptr<WhileStatement> Parser::parse_while_stmt()
 {
-	auto node = make_shared<WhileStatement>();
-	node->node_type = WHILE_STMT;
 	Token token = lexer.getToken();
 	if (token.lexem != "while") {
 		lexer.unget();
 		return nullptr;
 	}
+	auto node = make_shared<WhileStatement>();
+	node->node_type = WHILE_STMT;
+	node->lineno = lexer.getLineno();
 	token = lexer.getToken();
 	if (token.type != TK_LEFT_PRAN) {
 		Error::syntax_error("(", token, lexer);
@@ -269,15 +272,15 @@ shared_ptr<WhileStatement> Parser::parse_while_stmt()
 
 shared_ptr<IfStatement> Parser::parse_if_stmt()
 {
-	auto node = make_shared<IfStatement>();
-	node->node_type = IF_STMT;
 	Token token = lexer.getToken();
 	if (token.lexem != "if") {
 		lexer.unget();
 		return nullptr;
 	}
-		
+	auto node = make_shared<IfStatement>();
+	node->node_type = IF_STMT;
 	token = lexer.getToken();
+	node->lineno = lexer.getLineno();
 	if (token.type != TK_LEFT_PRAN) {
 		Error::syntax_error("(", token, lexer);
 		return nullptr;
@@ -418,9 +421,9 @@ shared_ptr<ClassCreatorExpression> Parser::parse_creator()
 		Error::syntax_error("TYPE_ID", token, lexer);
 		return nullptr;
 	}
-	shared_ptr<ClassCreatorExpression> node = make_shared<ClassCreatorExpression>();
+	shared_ptr<ClassCreatorExpression> node = make_shared<ClassCreatorExpression>(token);
 	node->node_type = CREATOR_EXP;
-	node->name = token;
+	node->lineno = lexer.getLineno();
 	token = lexer.getToken();
 	if (token.type != TK_LEFT_PRAN) {
 		Error::syntax_error("(", token, lexer);
@@ -439,10 +442,10 @@ shared_ptr<ClassCreatorExpression> Parser::parse_creator()
 
 shared_ptr<MethodInvocationExpression> Parser::parse_method_invocation()
 {
-	auto node = make_shared<MethodInvocationExpression>();
 	Token token = lexer.getToken(); //eat 'obj'
+	auto node = make_shared<MethodInvocationExpression>(token);
 	node->node_type = METHOD_INVOC_EXP;
-	node->name = token;
+	node->lineno = lexer.getLineno();
 	token = lexer.getToken();//eat '('
 	vector<shared_ptr<Expression>> arguments = parse_arguments();
 	token = lexer.getToken();
@@ -470,10 +473,9 @@ shared_ptr<Expression> Parser::parse_variable_declar()
 		lexer.unget();
 		return nullptr;
 	}
-	shared_ptr<VariableDeclareExpression> node = make_shared<VariableDeclareExpression>();
-	node->type = type;
-	node->id = token;
+	shared_ptr<VariableDeclareExpression> node = make_shared<VariableDeclareExpression>(type, token);
 	node->node_type = VAR_DECL_EXP;
+	node->lineno = lexer.getLineno();
 	return node;
 }
 
@@ -488,9 +490,9 @@ shared_ptr<Expression> Parser::parse_primary()
 	else if (token.type == TK_STR_CONST ||
 		token.type == TK_INT_CONST || token.lexem == "true" 
 		|| token.lexem == "false") {
-		shared_ptr<LiteralExpression> node = make_shared<LiteralExpression>();
+		shared_ptr<LiteralExpression> node = make_shared<LiteralExpression>(token);
 		node->node_type = LITERAL_EXP;
-		node->token = token;
+		node->lineno = lexer.getLineno();
 		return node;
 	}
 	else if (token.lexem == "new") {

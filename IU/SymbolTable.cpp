@@ -30,15 +30,16 @@ BlockSymbolTable* SymbolTable::addClass(std::shared_ptr<ClassNode> root)
 		Error::semantical_duplicate_var_error(name);
 		return nullptr;
 	}
-	string parentname = root->parentname;
-	if (!isTypeDefined(parentname)) {
-		Error::semantical_class_undefined(parentname);
-		return nullptr;
-	}
+
 	BlockSymbolTable* block = new BlockSymbolTable();
 	block->block_type = CLASS_BLOCK;
 	block->prev = nullptr;
 	classMap[name] = block;
+	string parentname = root->parentname;
+	if (!parentname.empty() && !isTypeDefined(parentname)) {
+		Error::semantical_class_undefined(parentname);
+		return nullptr;
+	}
 	if (!parentname.empty()) {
 		block->parentclass = parentname;
 	}
@@ -60,10 +61,9 @@ BlockSymbolTable* SymbolTable::addClass(std::shared_ptr<ClassNode> root)
 Symbol* SymbolTable::addFormal(shared_ptr<Formal> node, BlockSymbolTable* scope)
 {
 	if (!node) return nullptr;
-	Symbol* symbol = new Symbol();
-	symbol->id = node->id.lexem;
-	symbol->type = node->type.lexem;
+	Symbol* symbol = new Symbol(node->id.lexem, node->type.lexem);
 	symbol->symbol_type = OBJECT;
+	symbol->lineno = node->lineno;
 	scope->table[node->id.lexem] = symbol;
 
 	return symbol;
@@ -71,11 +71,9 @@ Symbol* SymbolTable::addFormal(shared_ptr<Formal> node, BlockSymbolTable* scope)
 
 BlockSymbolTable* SymbolTable::addMethodDefinition(std::shared_ptr<MethodDefinition> node, BlockSymbolTable* scope)
 {
-	Symbol* symbol = new Symbol();
-	symbol->id = node->name.lexem;
-	symbol->type = node->returntype.lexem;
+	Symbol* symbol = new Symbol(node->name.lexem, node->returntype.lexem);
 	symbol->symbol_type = METHOD;
-	
+	symbol->lineno = node->lineno;
 	shared_ptr<BlockStatement> blockStmt = node->block;
 	BlockSymbolTable* block = addBlockScope(blockStmt, scope);
 	block->block_type = METHOD_BLOCK;
@@ -103,9 +101,9 @@ BlockSymbolTable* SymbolTable::addBlockScope(std::shared_ptr<BlockStatement> nod
 	return block;
 }
 
-Symbol* SymbolTable::addStatement(std::shared_ptr<Statement> stmt, BlockSymbolTable* scope)
+void SymbolTable::addStatement(std::shared_ptr<Statement> stmt, BlockSymbolTable* scope)
 {
-	if (!stmt) return nullptr;
+	if (!stmt) return;
 	switch (stmt->node_type)
 	{
 	case EXP_STMT:
@@ -137,6 +135,7 @@ Symbol* SymbolTable::addExpStatement(shared_ptr<ExpStatement> node, BlockSymbolT
 			return nullptr;
 		}
 		Symbol* symbol = new Symbol(n->id.lexem, n->type.lexem);
+		symbol->lineno = n->lineno;
 		scope->table[symbol->id] = symbol;
 		return symbol;
 	}
@@ -179,6 +178,18 @@ bool BlockSymbolTable::isVariableDeclaredBefore(std::string name)
 	return false;
 }
 
+//From inner scope to outer scope, find out a symbol with given name.
+Symbol* BlockSymbolTable::lookupSymbolByName(std::string name)
+{
+	while (true) {
+		if (table.find(name) != table.cend()) {
+			return table[name];
+		}
+		if (!prev) break;
+		return prev->lookupSymbolByName(name);
+	}
+	return nullptr;
+}
 
 /* Symbol printer */
 void SymbolTable::printSymbolTable()
@@ -204,18 +215,7 @@ void BlockSymbolTable::printBlockSymbolTable(BlockSymbolTable* block)
 	}
 }
 
-//From inner scope to outer scope, find out a symbol with given name.
-Symbol* BlockSymbolTable::lookupSymbolByName(std::string name)
-{
-	while (true) {
-		if (table.find(name) != table.cend()) {
-			return table[name];
-		}
-		if (!prev) break;
-		return prev->lookupSymbolByName(name);
-	}
-	return nullptr;
-}
+
 
 
 
