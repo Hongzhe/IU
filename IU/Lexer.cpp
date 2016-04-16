@@ -9,7 +9,7 @@ using namespace std;
 
 Lexer::Lexer() 
 {
-	lineno = 0;
+	lineno = 1;
 	init_keyword();
 }
 
@@ -59,6 +59,7 @@ char Lexer::nextChar()
 
 void Lexer::putback(char c)
 {
+	if (c == '\n') lineno--;
 	fin.putback(c);
 }
 void Lexer::unget(Token token)

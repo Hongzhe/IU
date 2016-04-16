@@ -27,7 +27,7 @@ BlockSymbolTable* SymbolTable::addClass(std::shared_ptr<ClassNode> root)
 	std::string name = root->classname.lexem;
 	if (isTypeDefined(name)) {
 		//throw exception
-		Error::semantical_duplicate_var_error(name);
+		Error::semantical_duplicate_var_error(name, root->lineno);
 		return nullptr;
 	}
 
@@ -125,12 +125,12 @@ Symbol* SymbolTable::addExpStatement(shared_ptr<ExpStatement> node, BlockSymbolT
 		auto n = dynamic_pointer_cast<VariableDeclareExpression>(exp);
 		if (!isTypeDefined(n->type.lexem)) {
 			//throw exception and report an error.
-			Error::semantical_undefined_var_error(n->type.lexem);
+			Error::semantical_undefined_type(n->type.lexem,node->lineno);
 			return nullptr;
 		}
 		if (scope->isVariableDeclared(n->id.lexem)) {
 			//throw exception and report an error.
-			Error::semantical_duplicate_var_error(n->id.lexem);
+			Error::semantical_duplicate_var_error(n->id.lexem, node->lineno);
 			return nullptr;
 		}
 		Symbol* symbol = new Symbol(n->id.lexem, n->type.lexem);
@@ -144,11 +144,11 @@ Symbol* SymbolTable::addExpStatement(shared_ptr<ExpStatement> node, BlockSymbolT
 		if (n->left->node_type == VAR_DECL_EXP) {
 			auto var = dynamic_pointer_cast<VariableDeclareExpression>(n->left);
 			if (!isTypeDefined(var->type.lexem)) {
-				Error::semantical_undefined_type(var->type.lexem);
+				Error::semantical_undefined_type(var->type.lexem,var->lineno);
 				return nullptr;
 			}
 			if (scope->isVariableDeclaredBefore(var->id.lexem)) {
-				Error::semantical_duplicate_var_error(var->id.lexem);
+				Error::semantical_duplicate_var_error(var->id.lexem, n->lineno);
 				return nullptr;
 			}
 			Symbol* symbol = new Symbol(var->id.lexem, var->type.lexem);

@@ -17,11 +17,6 @@ public:
 		std::cerr << "At line " << lineno << " Cannot assign object of type " << rtype << " to a object of type " << ltype << std::endl;
 	}
 
-	static void semantical_undefined_type(std::string& type)
-	{
-		std::cerr << "type " << type << " is undefined." << std::endl;
-	}
-	
 	static void semantical_undefined_type(std::string& type, unsigned int lineno)
 	{
 		std::cerr << "At line " << lineno << " type " << type << " is undefined." << std::endl;
@@ -32,19 +27,19 @@ public:
 		std::cerr << id << " is undefined." << std::endl;
 	}
 
-	static void semantical_duplicate_var_error(std::string id)
+	static void semantical_duplicate_var_error(std::string id, unsigned int lineno)
 	{
-		std::cerr << id << " has been declared before." << std::endl;
+		std::cerr << "At line "<< lineno << " " << id << " has been declared before." << std::endl;
 	}
 
-	static void semantical_method_undefined_error(std::string id)
+	static void semantical_method_undefined_error(std::string id, unsigned int lineno)
 	{
-		std::cerr << id << " is not defined. " << std::endl;
+		std::cerr << "At line " << lineno << " " << id << " is not defined. " << std::endl;
 	}
 	
-	static void semantical_operator_incompitable(std::string op)
+	static void semantical_operator_incompitable(std::string op, unsigned int lineno)
 	{
-		std::cerr << op << " is incompatiable." << std::endl;
+		std::cerr << "At line " << lineno << " " << op << " is incompatiable." << std::endl;
 	}
 
 	static void semantical_class_undefined(std::string type)

@@ -61,5 +61,7 @@ public:
 	std::shared_ptr<Expression> Parser::parse_expression();
 
 	std::shared_ptr<Statement> parse_statement();
+
+	void reset();
 };
 

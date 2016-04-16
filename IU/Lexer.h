@@ -100,6 +100,8 @@ public:
 
 	Token getCurToken() { return cur_token; }
 	
+	void reset() { lineno = 1; }
+	
 	bool isBinOp(Token token);
 };
 

@@ -15,28 +15,32 @@ using namespace std;
 
 int main()
 {
-/*	Lexer iuLexer;
-	iuLexer.openFile("d:/code/IU/test/class.IU");
+	/*Lexer iuLexer;
+	iuLexer.openFile("c:/code/IU/test/class_test.IU");
 	Token token;
 	while (iuLexer.state != EOF_STATE) {
 		token = iuLexer.getToken();
-		cout << token.type << " " << token.lexem << endl;
+		cout << "At line " << iuLexer.getLineno() << " " << token.lexem << endl;
 	}
-*/
+	*/
+	
 	Parser parser;
+	//parser.prepare("c:/code/IU/test/class_inherit_test.IU");
+//	shared_ptr<ClassNode> inherit_stmt = parser.parse();
 	parser.prepare("c:/code/IU/test/class_test.IU");
 	shared_ptr<ClassNode> stmt = parser.parse();
-	
-	/*SymbolTable* table = new SymbolTable();
-	BlockSymbolTable* sb = table->addClass(stmt);
-	table->printSymbolTable();*/
+
+
 	Analyzer analzyer;
+	//BlockSymbolTable* herotable = analzyer.analyze(inherit_stmt);
+	//BlockSymbolTable::printBlockSymbolTable(herotable);
 	BlockSymbolTable* classtable = analzyer.analyze(stmt);
-	BlockSymbolTable::printBlockSymbolTable(classtable);
+	//BlockSymbolTable::printBlockSymbolTable(classtable);
 
 
 	/*TreePrinter printer;
 	printer.visit(stmt);*/
     return 0;
+
 }
 

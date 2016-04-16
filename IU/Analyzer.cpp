@@ -4,7 +4,7 @@
 #include "Parser.h"
 #include <memory>
 #include <vector>
-
+#include <iostream>
 using namespace std;
 Analyzer::Analyzer() {
 	table = new SymbolTable();
@@ -180,13 +180,13 @@ void Analyzer::analyze_binary_exp(std::shared_ptr<BinaryExpression> node, BlockS
 		|| op.type == TK_GT || op.type == TK_GEQ) {
 		if (deduceTypeFromExpression(left, scope) != "Int" ||
 			deduceTypeFromExpression(right, scope) != "Int") {
-			Error::semantical_operator_incompitable(op.lexem);
+			Error::semantical_operator_incompitable(op.lexem, node->lineno);
 			return;
 		}
 	}
 	else if (op.type == TK_ASSIGN) {
 		if (!canBeAssign(left, right, scope)) {
-			Error::semantical_operator_incompitable(op.lexem);
+			Error::semantical_operator_incompitable(op.lexem, node->lineno);
 			return;
 		}
 	}
@@ -213,7 +213,7 @@ bool Analyzer::isValidLeftValForAssignment(std::shared_ptr<Expression> left)
 void Analyzer::analyzer_creator(std::shared_ptr<ClassCreatorExpression> node, BlockSymbolTable* scope)
 {
 	if (!table->isTypeDefined(node->name.lexem)) {
-		Error::semantical_undefined_type(node->name.lexem);
+		Error::semantical_undefined_type(node->name.lexem, node->lineno);
 		return;
 	}
 }
@@ -294,7 +294,7 @@ string Analyzer::deduceTypeFromExpression(std::shared_ptr<Expression> node, Bloc
 		string name = exp->name.lexem;
 		//lookup symbol table for method with this name and then check its return type.
 		if (!current_table->isVariableDeclared(name)) {
-			Error::semantical_method_undefined_error(name);
+			Error::semantical_method_undefined_error(name, node->lineno);
 			return "";
 		}
 		Symbol* symbol = scope->lookupSymbolByName(name);
@@ -321,14 +321,14 @@ string Analyzer::deduceTypeFromExpression(std::shared_ptr<Expression> node, Bloc
 			|| op.type == TK_MULTIPLY || op.type == TK_MOD) {
 			if (lefttype == "Int" && righttype == "Int") 
 				return "Int";
-			Error::semantical_operator_incompitable(op.lexem);
+			Error::semantical_operator_incompitable(op.lexem, node->lineno);
 			return "";
 		}
 		else if (op.type == TK_LE || op.type == TK_LEQ
 			|| op.type == TK_GT || op.type == TK_GEQ || op.type == TK_EQ) {
 			if (lefttype == "Int" && righttype == "Int") 
 				return "Bool";
-			Error::semantical_operator_incompitable(op.lexem);
+			Error::semantical_operator_incompitable(op.lexem, node->lineno);
 			return "";
 		}
 		else if (op.type == TK_ASSIGN) {

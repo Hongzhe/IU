@@ -28,9 +28,17 @@ Parser::Parser() {
 	BinopPrecedence["%"] = 30;
 }
 
+void Parser::reset()
+{
+	lexer.closeFile();
+	lexer.reset();
+}
+
 shared_ptr<ClassNode> Parser::parse()
 {
-	return parse_class();
+	shared_ptr<ClassNode>ret =  parse_class();
+	reset();
+	return ret;
 }
 
 
@@ -364,6 +372,7 @@ shared_ptr<Expression> Parser::parse_binary_experssion(int precedence,
 		
 		left = make_shared<BinaryExpression>(op, std::move(left), std::move(right));
 		left->node_type = BINARY_EXP;
+		left->lineno = lexer.getLineno();
 	}
 }
 
