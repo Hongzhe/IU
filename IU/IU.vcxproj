@@ -147,6 +147,7 @@
   <ItemGroup>
     <ClInclude Include="Analyzer.h" />
     <ClInclude Include="ast.h" />
+    <ClInclude Include="CodeGen.h" />
     <ClInclude Include="Error.h" />
     <ClInclude Include="ParserException.h" />
     <ClInclude Include="LexerException.h" />
@@ -158,6 +159,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Analyzer.cpp" />
+    <ClCompile Include="CodeGen.cpp" />
     <ClCompile Include="IU.cpp" />
     <ClCompile Include="Lexer.cpp" />
     <ClCompile Include="Parser.cpp" />

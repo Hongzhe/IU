@@ -10,7 +10,7 @@
 #include "Parser.h"
 #include "SymbolTable.h"
 #include "Analyzer.h"
-
+#include "CodeGen.h"
 using namespace std;
 
 int main()
@@ -40,6 +40,8 @@ int main()
 
 	/*TreePrinter printer;
 	printer.visit(stmt);*/
+	Assembler assembler;
+	assembler.startGen("c://code//IU//first.class");
     return 0;
 
 }
