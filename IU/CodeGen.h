@@ -5,22 +5,68 @@
 #include "ast.h"
 #include "SymbolTable.h"
 #include "Analyzer.h"
+#include "ClassFormat.h"
 #include <fstream>
 #include <iostream>
+#include <vector>
+#include <map>
+
+class ConstantVisitor;
 
 class Assembler {
 private:
 	std::ofstream out;
+
 	std::shared_ptr<ClassNode> current_ast;
 
+	std::map<std::string, std::string> field_descriptors;
+		
 	void writeInt32(unsigned __int32 val);
+
 	void writeInt16(unsigned __int16 val);
+	
 	void genHead();
+	void writeConstantPool(std::vector<cp_info*>&);
+
+	void extractConstantFromField(const std::shared_ptr<Formal>, std::vector<cp_info*>&);
+	
+	void extractConstantFromExpression(const std::shared_ptr<Expression>, std::vector<cp_info*>&);
+	
+	void Assembler::literalExpConstant(const std::shared_ptr<LiteralExpression> node, std::vector<cp_info*>&);
+
+	void classCreatorConstant(const std::shared_ptr<ClassCreatorExpression> node, std::vector<cp_info*>& pool);
+	
+	int genMethodRef(std::string, std::string, std::string, std::vector<cp_info*>&);
+	
+	int genClassInfo(std::string, std::vector<cp_info*>&);
+	
+	int genUTF8Constant(std::string, std::vector<cp_info*>&);
+	
+	int genNameAndType(std::string, std::string, std::vector<cp_info*>&);
+	
+	int genNameAndType(int, int, std::vector<cp_info*>&);
+
+	int lookupConstantTable(unsigned __int8 tag, std::string target, std::vector<cp_info*>&);
+	
+	int Assembler::lookupClassFromConstantPool(std::string target, std::vector<cp_info*>& pool);
+	
+	int Assembler::lookupUTF8FromConstantPool(std::string target, std::vector <cp_info*>&);
+	
+	int Assembler::lookupNameTypeFromConstantPool(__int16 name, __int16 type, std::vector<cp_info*>&);
+	
+	bool Assembler::isEqual(int size, unsigned char* bytes, std::string s);
+
 public:
+	friend ConstantVisitor;
+
 	Analyzer analyzer;
+
 	void prepare();
+	
 	void startGen(std::string dir);
+	
 	void end();
+	
 	void genConstantPool(BlockSymbolTable*);
 	
 	//java class is big-endien coded.
@@ -36,5 +82,35 @@ public:
 	{
 		return ((0xFF00 & num) >> 8) |
 			((0x00FF & num) << 8);
+	}
+};
+
+class ConstantVisitor :IVisitor
+{
+public:
+	void visit(std::shared_ptr<Expression> exp) 
+	{
+		switch (exp->node_type)
+		{
+		case LITERAL_EXP:
+			visit(dynamic_pointer_cast<LiteralExpression>(exp));
+		}
+	}
+
+	void visit(std::shared_ptr<PranExpression> node) 
+	{
+
+	}
+
+	void visit(std::shared_ptr<BinaryExpression> node) 
+	{
+
+	}
+
+	void visit(std::shared_ptr<LiteralExpression> node) 
+	{
+		if (node->token.type == TK_STR_CONST) {
+			
+		}
 	}
 };
