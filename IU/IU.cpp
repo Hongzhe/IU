@@ -41,7 +41,8 @@ int main()
 	/*TreePrinter printer;
 	printer.visit(stmt);*/
 	Assembler assembler;
-	assembler.startGen("c://code//IU//first.class");
+	assembler.analyzer = analzyer;
+	assembler.startGen("c://code//IU//");
     return 0;
 
 }

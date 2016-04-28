@@ -13,6 +13,8 @@ public:
 
 	SymbolTable* table;
 
+	std::map<std::string, std::shared_ptr<ClassNode>> classNodes;
+
 	Analyzer();
 	
 	void prepare();
@@ -25,8 +27,6 @@ private:
 	BlockSymbolTable* parent_scope;
 
 	std::shared_ptr<ClassNode> curClassNode;
-
-	std::map<std::string, std::shared_ptr<ClassNode>> classNodes;
 
 	//deduce type from expression
 	std::string deduceTypeFromExpression(std::shared_ptr<Expression> node, BlockSymbolTable* scope);
