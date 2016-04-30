@@ -26,16 +26,35 @@ private:
 	void writeInt16(unsigned __int16 val);
 	
 	void genHead();
+	
 	void writeConstantPool(std::vector<cp_info*>&);
+	
+	void writeFieldOrMethods(std::vector<Field_Method_info*>&);
 
-	void extractConstantFromField(const std::shared_ptr<Formal>, std::vector<cp_info*>&);
+	void extractConstantFromExpStatement(std::shared_ptr<ExpStatement>, std::vector<cp_info*>&);
+
+	void extractConstantFromBlockStatement(std::shared_ptr<BlockStatement>, std::vector<cp_info*>&);
+
+	void extractConstantFromStatement(std::shared_ptr<Statement>, std::vector<cp_info*>&);
+
+	void extractConstantFromMethod(const std::shared_ptr<MethodDefinition>, std::vector<cp_info*>&);
+	
+	void extractConstantFromField(const std::shared_ptr<Formal>, int, std::vector<cp_info*>&);
 	
 	void extractConstantFromExpression(const std::shared_ptr<Expression>, std::vector<cp_info*>&);
 	
-	void Assembler::literalExpConstant(const std::shared_ptr<LiteralExpression> node, std::vector<cp_info*>&);
+	void literalExpConstant(const std::shared_ptr<LiteralExpression> node, std::vector<cp_info*>&);
+	
+	void binaryExpConstant(const std::shared_ptr<BinaryExpression> node, std::vector<cp_info*>&);
+
+	void pranExpConstant(const std::shared_ptr<PranExpression>, std::vector<cp_info*>&);
 
 	void classCreatorConstant(const std::shared_ptr<ClassCreatorExpression> node, std::vector<cp_info*>& pool);
 	
+	void methodInvocConstant(const std::shared_ptr<MethodInvocationExpression> node, std::vector<cp_info*>& pool);
+	
+	void declarationConstant(const std::shared_ptr<VariableDeclareExpression> node, std::vector<cp_info*>& pool);
+
 	int genMethodRef(std::string, std::string, std::string, std::vector<cp_info*>&);
 	
 	int genClassInfo(std::string, std::vector<cp_info*>&);
@@ -60,7 +79,11 @@ public:
 	friend ConstantVisitor;
 
 	Analyzer analyzer;
+	
+	std::vector<Field_Method_info*> field_info_v;
 
+	std::vector<Field_Method_info*> method_info_v;
+	
 	void prepare();
 	
 	void startGen(std::string dir);
@@ -93,7 +116,7 @@ public:
 		switch (exp->node_type)
 		{
 		case LITERAL_EXP:
-			visit(dynamic_pointer_cast<LiteralExpression>(exp));
+			visit(std::dynamic_pointer_cast<LiteralExpression>(exp));
 		}
 	}
 

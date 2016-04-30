@@ -83,3 +83,23 @@ public:
 	unsigned __int16 bootstrap_method_attr_index;
 	unsigned __int16 name_and_type_index;
 };
+
+class Attribute_info {
+public:
+	uint16_t attribute_name_index;
+	uint32_t attribute_length;
+	virtual ~Attribute_info();
+};
+
+class Field_Method_info {
+public:
+	Field_Method_info() {}
+	Field_Method_info(uint16_t flag):access_flag(flag) {}
+	Field_Method_info(uint16_t flag, uint16_t name, uint16_t descriptor) : access_flag(flag), 
+		name_index(name), descriptor_index(descriptor){}
+	uint16_t access_flag;
+	uint16_t name_index;
+	uint16_t descriptor_index;
+	uint16_t attribute_count = 0;
+	Attribute_info* attribute;
+};

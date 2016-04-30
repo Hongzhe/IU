@@ -38,11 +38,12 @@ int main()
 	//BlockSymbolTable::printBlockSymbolTable(classtable);
 
 
-	/*TreePrinter printer;
-	printer.visit(stmt);*/
+	//TreePrinter printer;
+	//printer.visit(stmt);
 	Assembler assembler;
 	assembler.analyzer = analzyer;
-	assembler.startGen("c://code//IU//");
+	assembler.startGen("c://code//IU//test//");
+	
     return 0;
 
 }
