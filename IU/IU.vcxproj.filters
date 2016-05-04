@@ -48,10 +48,13 @@
     <ClInclude Include="SymbolTable.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="CodeGen.h">
+    <ClInclude Include="ClassFormat.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="ClassFormat.h">
+    <ClInclude Include="Assembler.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="Instruction.h">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>
@@ -74,7 +77,7 @@
     <ClCompile Include="Analyzer.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="CodeGen.cpp">
+    <ClCompile Include="Assembler.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>

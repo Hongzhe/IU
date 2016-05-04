@@ -1,5 +1,5 @@
 #include "stdafx.h"
-#include "CodeGen.h"
+#include "Assembler.h"
 #include "ClassFormat.h"
 #include <vector>
 using namespace std;
@@ -25,19 +25,6 @@ void Assembler::startGen(string dir)
 		
 		out.close();
 	}
-	
-}
-
-void Assembler::writeInt32(unsigned __int32 val)
-{
-	uint32_t v = littleToBig(val);
-	out.write((char*)&v, 4);
-}
-
-void Assembler::writeInt16(unsigned __int16 val) 
-{
-	unsigned __int16 v = littleToBig(val);
-	out.write((char*)&v, 2);
 }
 
 void Assembler::genHead()
@@ -169,7 +156,7 @@ void Assembler::extractConstantFromMethod(const shared_ptr<MethodDefinition> met
 {
 	//method name;
 	int id_index = genUTF8Constant(method->name.lexem, pool);
-	string returntype = method->returntype.lexem == "void" ? "v" : "L" + method->returntype.lexem;
+	string returntype = method->returntype.lexem == "void" ? "V" : "L" + method->returntype.lexem;
 	int type_index = genUTF8Constant(returntype, pool);
 	vector<shared_ptr<Formal>> arguments = method->arguments;
 	string method_descriptor = "(";
@@ -181,6 +168,10 @@ void Assembler::extractConstantFromMethod(const shared_ptr<MethodDefinition> met
 	method_descriptor += ";)";
 	method_descriptor += returntype;
 	int descriptor_index = genUTF8Constant(method_descriptor, pool);
+	int name_type_index = genNameAndType(id_index, descriptor_index, pool);
+	int methodref_index = genMethodRef(cur_class_index, name_type_index);
+	methodref_index_map[method->name.lexem] = methodref_index;
+
 	shared_ptr<BlockStatement> block = method->block;
 	extractConstantFromBlockStatement(block, pool);
 	Field_Method_info* method_info = new Field_Method_info(0x0001, id_index, descriptor_index);
@@ -189,16 +180,17 @@ void Assembler::extractConstantFromMethod(const shared_ptr<MethodDefinition> met
 
 void Assembler::genConstantPool(BlockSymbolTable* symboltable)
 {
-	vector<cp_info*> constant_pool;
 	string classname = current_ast->classname.lexem;
-	int class_index = genClassInfo(classname, constant_pool);
+	cur_class_index = genClassInfo(classname, constant_pool);
 	int obj_index = genClassInfo("iu/lang/Object", constant_pool);
 	vector<cp_info*> &b = constant_pool;
 	//class inherits from Object. And call Object init method while creating a class.
 	genMethodRef("iu/lang/Object", "<init>","()V", b);
+	int init_index = genMethodRef(classname, "<init>", "()v", b);
+	methodref_index_map["<init>"] = init_index;
 	vector<shared_ptr<Formal>> fields = current_ast->fields;
 	for (int i = 0; i < fields.size(); i++) {
-		extractConstantFromField(fields[i], class_index, b);
+		extractConstantFromField(fields[i], cur_class_index, b);
 	}
 	vector<shared_ptr<MethodDefinition>> methods = current_ast->methods;
 	for (int i = 0; i < methods.size(); i++) {
@@ -206,7 +198,7 @@ void Assembler::genConstantPool(BlockSymbolTable* symboltable)
 	}
 	writeConstantPool(b);
 	writeInt16(0x0001); //access_flag
-	writeInt16(class_index); //this class
+	writeInt16(cur_class_index); //this class
 	writeInt16(obj_index); //parent class
 	writeInt16(0x0000);//interface count
 	writeFieldOrMethods(field_info_v);
@@ -216,7 +208,7 @@ void Assembler::genConstantPool(BlockSymbolTable* symboltable)
 
 int Assembler::genClassInfo(std::string classname, vector<cp_info*>& pool)
 {
-	int found = lookupConstantTable(0x07, classname, pool);
+	int found = lookupConstantTable(0x07, classname);
 	if (found != -1) return found;
 	CONSTANT_Class_info* info = new CONSTANT_Class_info(0x07);
 	int name_index = genUTF8Constant(classname, pool);
@@ -246,7 +238,7 @@ int Assembler::genNameAndType(std::string name, std::string type, std::vector<cp
 
 int Assembler::genUTF8Constant(std::string content, vector<cp_info*>& pool) 
 {
-	int found = lookupUTF8FromConstantPool(content, pool);
+	int found = lookupUTF8FromConstantPool(content);
 	if (found != -1) return found;
 	CONSTANT_Utf8_info* info = new CONSTANT_Utf8_info(0x01);
 	int length = (int)content.length();
@@ -260,18 +252,23 @@ int Assembler::genUTF8Constant(std::string content, vector<cp_info*>& pool)
 	return pool.size() - 1;
 }
 
-/*method reference contains class info and method's name and return type*/
+/*method reference contains class info and method's name and its descriptor*/
 int Assembler::genMethodRef(string classname, string id, string type, vector<cp_info*>& pool)
 {
 	int classindex = genClassInfo(classname, pool);
 	int idindex = genUTF8Constant(id, pool);
 	int typeindex = genUTF8Constant(type, pool);
 	int nameAndType = genNameAndType(idindex, typeindex, pool);
-	Methodref_info* method_info = new Methodref_info(0x0a);
-	method_info->class_index = classindex;
-	method_info->name_and_type_index = nameAndType;
-	pool.push_back(method_info);
-	return pool.size() - 1;
+	return genMethodRef(idindex, nameAndType);
+}
+
+int Assembler::genMethodRef(int classindex, int nameAndType)
+{
+	Methodref_info* info = new Methodref_info(0x0a);
+	info->class_index = classindex;
+	info->name_and_type_index = nameAndType;
+	constant_pool.push_back(info);
+	return constant_pool.size() - 1;
 }
 
 int Assembler::lookupNameTypeFromConstantPool(__int16 name, __int16 type, std::vector<cp_info*>& pool)
@@ -289,13 +286,13 @@ int Assembler::lookupNameTypeFromConstantPool(__int16 name, __int16 type, std::v
 	return index;
 }
 
-int Assembler::lookupUTF8FromConstantPool(std::string target, std::vector < cp_info*>& pool)
+int Assembler::lookupUTF8FromConstantPool(std::string target)
 {
 	int index = -1;
-	for (int i = 0; i < pool.size(); i++)
+	for (int i = 0; i < constant_pool.size(); i++)
 	{
 		bool found = true;
-		cp_info* info = pool[i];
+		cp_info* info = constant_pool[i];
 		if (info->tag != 0x01) continue;
 		CONSTANT_Utf8_info* utf8 = dynamic_cast<CONSTANT_Utf8_info*>(info);
 		found = isEqual(utf8->length, utf8->byte, target);
@@ -304,33 +301,43 @@ int Assembler::lookupUTF8FromConstantPool(std::string target, std::vector < cp_i
 	return index;
 }
 
-int Assembler::lookupClassFromConstantPool(std::string target, std::vector<cp_info*>& pool)
+int Assembler::lookupClassFromConstantPool(std::string target)
 {
-	for (int i = 0; i < pool.size(); i++)
+	for (int i = 0; i < constant_pool.size(); i++)
 	{
-		cp_info* info = pool[i];
+		cp_info* info = constant_pool[i];
 		if (info->tag != 0x07) continue;
 		CONSTANT_Class_info* classinfo = dynamic_cast<CONSTANT_Class_info*>(info);
-		CONSTANT_Utf8_info* utf8 = dynamic_cast<CONSTANT_Utf8_info*>(pool[classinfo->name_index]);
+		CONSTANT_Utf8_info* utf8 = dynamic_cast<CONSTANT_Utf8_info*>(constant_pool[classinfo->name_index]);
 		bool found = isEqual(utf8->length, utf8->byte, target);
 		if (found) return i;
 	}
 	return -1;
 }
 
-int Assembler::lookupConstantTable(unsigned __int8 tag, std::string target, std::vector<cp_info*>& pool)
+int Assembler::lookupConstantTable(unsigned __int8 tag, std::string target)
 {
 	int index = -1;
 	switch (tag)
 	{
 	case 0x07:
-		index = lookupClassFromConstantPool(target, pool);
+		index = lookupClassFromConstantPool(target);
 		break;
 	case 0x01:
-		index = lookupUTF8FromConstantPool(target, pool);
+		index = lookupUTF8FromConstantPool(target);
 		break;
 	}
 	return index;
+}
+int Assembler::lookupField(string field_name)
+{
+	for (auto it = field_info_v.cbegin(); it != field_info_v.cend(); it++) {
+		cp_info* info = constant_pool[(*it)->name_index];
+		auto utf8_info = dynamic_cast<CONSTANT_Utf8_info*>(info);
+		bool found = isEqual(utf8_info->length, utf8_info->byte, field_name);
+		if (found) return (*it)->name_index;
+	}
+	return -1;
 }
 
 bool Assembler::isEqual(int size, unsigned char* bytes, string s)
@@ -426,5 +433,188 @@ void Assembler::writeFieldOrMethods(std::vector<Field_Method_info*>& collections
 		writeInt16(info->descriptor_index);
 		writeInt16(info->attribute_count);
 	}
+}
+
+/*generate code attribute of method definition.*/
+void genCodeAttribute()
+{
+	//
+}
+
+void CodeGenVisitor::visit(shared_ptr<Expression> node)
+{
+	switch (node->node_type)
+	{
+	case CREATOR_EXP:
+		visit(dynamic_pointer_cast<ClassCreatorExpression>(node));
+		break;
+	case METHOD_INVOC_EXP:
+		visit(dynamic_pointer_cast<MethodInvocationExpression>(node));
+		break;
+	case LITERAL_EXP:
+		visit(dynamic_pointer_cast<LiteralExpression>(node));
+		break;
+	case PRAN_EXP:
+		visit(dynamic_pointer_cast<PranExpression>(node));
+		break;
+	case BINARY_EXP:
+		visit(dynamic_pointer_cast<BinaryExpression>(node));
+		break;
+	}
+}
+
+void CodeGenVisitor::visit(std::shared_ptr<VariableDeclareExpression> node)
+{
+	variable_table[node->id.lexem] = max_variable;
+	if (max_variable > 3) {
+		//astore max_variable
+	}
+	else {
+		//astore_max_variable;
+	}
+	max_variable++;
+}
+
+void CodeGenVisitor::visit(shared_ptr<LiteralExpression>(node))
+{	
+	Token_Type type = node->token.type;
+	if (node->token.type == TK_STR_CONST) {
+		int str_index = assembler.lookupUTF8FromConstantPool(node->token.lexem);
+		//ldc str_index;
+	}
+	else if (node->token.type == TK_INT_CONST) {
+		string intstr = node->token.lexem;
+		int val = 0;
+		sscanf(intstr.c_str(), "%D", &val);
+		if (val >= 0 && val < 6) {
+			//iconst_n iconst_0 + val
+		}
+		else {
+			//bipush val
+		}
+	}
+	else if (node->token.lexem == "true") {
+		//iconst_1
+	}
+	else if (node->token.lexem == "false") {
+		//iconst_0
+	}
+	else if (node->token.type == TK_OBJ_ID) {
+		//lookup symbol table
+		string obj = node->token.lexem;
+		if (variable_table.find(obj) != variable_table.end()) {
+			//iload_ variable_table[obj];
+		}
+		else {
+			int field_index = assembler.lookupField(obj);
+			if (field_index == -1) {
+				//error
+				return;
+			}
+			//aload_0
+			//getField field_index;
+		}
+	}
+}
+
+void CodeGenVisitor::visit(shared_ptr<BinaryExpression> node)
+{
+	node->left;
+	node->right;
+	Token_Type optype = node->op.type;
+	//operations  could be arithmetic operation. assignment 
+	// need to know the type of operands. track back two element in the stack to detemrmine the type.
+	switch (optype) 
+	{
+	case TK_ADD:
+		break;
+	case TK_MINUS:
+		break;
+	case TK_MOD:
+		break;
+	case TK_MULTIPLY:
+		break;
+	}
+}
+
+void CodeGenVisitor::visit(shared_ptr<ClassCreatorExpression> node)
+{
+	//initialize parent class first
+	//initialize the this class and initialize its field;
+
+	int class_index = assembler.lookupConstantTable(0x07, node->name.lexem);
+	//new class_index
+	//dup
+	//invokespecial index_of_method.
+}
+
+void CodeGenVisitor::visit(shared_ptr<MethodInvocationExpression> node)
+{
+	//search for method name and its descriptor
+	vector<shared_ptr<Expression>> arguments = node->arguments;
+	string name = node->name.lexem;
+	int name_index = assembler.lookupConstantTable(0x01, name);
+	for (auto it = arguments.cbegin(); it != arguments.cend(); it++) {
+		visit(*it);
+	}
+	Methodref_info* info = dynamic_cast<Methodref_info*>(assembler.constant_pool[name_index]);
+	CONSTANT_NameAndType_info* nameandtype = dynamic_cast<CONSTANT_NameAndType_info*>(
+		assembler.constant_pool[info->name_and_type_index]);
+	CONSTANT_Utf8_info* descriptor = dynamic_cast<CONSTANT_Utf8_info*>(
+		assembler.constant_pool[nameandtype->descriptor_index]);
+	int i = 0;
+	for (; i < descriptor->length; i++) {
+		if (descriptor->byte[i] == ')') {
+			break;
+		}
+	}
+
+	//aload_0
+	auto arguments = node->arguments;
+	for (auto it = arguments.cbegin(); it != arguments.cend(); it++)
+	{
+		visit(*it);
+	}
+	//invokevirtual name_index
+	
+	char returntype = descriptor->byte[i + 1];
+	switch (returntype) {
+	case 'V':
+		//return
+		break;
+	case 'I':
+		//ireturn
+		break;
+	case 'L':
+		//areturn
+		break;
+	}
+	
+	//return 
+
+}
+
+void CodeGenVisitor::visit(shared_ptr<Statement> node)
+{
+	switch (node->node_type)
+	{
+	case IF_STMT:
+		visit(dynamic_pointer_cast<IfStatement>(node));
+		break;
+	case WHILE_STMT:
+		visit(dynamic_pointer_cast<WhileStatement>(node));
+		break;
+	case BLOCK_STMT:
+		visit(dynamic_pointer_cast<BlockStatement>(node));
+		break;
+	}
+}
+
+void CodeGenVisitor::visit(std::shared_ptr<IfStatement> node)
+{
+	shared_ptr<Statement> statement = node->block;
+	visit(statement);
+	//goto byte_length;
+	shared_ptr<Expression> condition = node->condition;
 
 }

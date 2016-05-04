@@ -86,9 +86,28 @@ public:
 
 class Attribute_info {
 public:
+	Attribute_info(uint16_t name_index) : attribute_name_index(name_index) {}
 	uint16_t attribute_name_index;
 	uint32_t attribute_length;
 	virtual ~Attribute_info();
+};
+
+class Code_attribute : public Attribute_info
+{
+public:
+	Code_attribute(uint16_t name_index) : Attribute_info(name_index) {}
+	uint16_t max_stack;
+	uint16_t max_locals;
+	uint32_t code_length;
+	char* code;
+	uint16_t attribute_count;
+	Attribute_info* attributes;
+};
+
+class SourceFile_attribute : public Attribute_info {
+public:
+	SourceFile_attribute(uint16_t name) : Attribute_info(name) {}
+	uint16_t sourcefile_index;
 };
 
 class Field_Method_info {

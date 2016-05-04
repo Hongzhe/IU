@@ -10,7 +10,7 @@
 #include "Parser.h"
 #include "SymbolTable.h"
 #include "Analyzer.h"
-#include "CodeGen.h"
+#include "Assembler.h"
 using namespace std;
 
 int main()

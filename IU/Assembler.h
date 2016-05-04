@@ -11,7 +11,7 @@
 #include <vector>
 #include <map>
 
-class ConstantVisitor;
+class CodeGenVisitor;
 
 class Assembler {
 private:
@@ -20,10 +20,40 @@ private:
 	std::shared_ptr<ClassNode> current_ast;
 
 	std::map<std::string, std::string> field_descriptors;
-		
-	void writeInt32(unsigned __int32 val);
 
-	void writeInt16(unsigned __int16 val);
+	std::vector<cp_info*> constant_pool;
+	
+	std::map<std::string, int> methodref_index_map;
+
+	std::vector<Field_Method_info*> field_info_v;
+
+	std::vector<Field_Method_info*> method_info_v;
+	
+	int cur_class_index;
+
+	inline static unsigned int littleToBig(unsigned int num)
+	{
+		return ((0xFF000000 & num) >> 24) |
+			((0x00FF0000 & num) >> 8) |
+			((0x0000FF00 & num) << 8) |
+			((0x000000FF & num) << 24);
+	}
+
+	inline static unsigned __int16 littleToBig(unsigned __int16 num)
+	{
+		return ((0xFF00 & num) >> 8) |
+			((0x00FF & num) << 8);
+	}
+
+	inline void writeInt32(unsigned __int32 val) {
+		uint32_t v = littleToBig(val);
+		out.write((char*)&v, 4);
+	}
+
+	inline void writeInt16(unsigned __int16 val) {
+		unsigned __int16 v = littleToBig(val);
+		out.write((char*)&v, 2);
+	}
 	
 	void genHead();
 	
@@ -54,9 +84,13 @@ private:
 	void methodInvocConstant(const std::shared_ptr<MethodInvocationExpression> node, std::vector<cp_info*>& pool);
 	
 	void declarationConstant(const std::shared_ptr<VariableDeclareExpression> node, std::vector<cp_info*>& pool);
+	
+	void genCodeAttribute();
 
 	int genMethodRef(std::string, std::string, std::string, std::vector<cp_info*>&);
 	
+	int genMethodRef(int, int);
+
 	int genClassInfo(std::string, std::vector<cp_info*>&);
 	
 	int genUTF8Constant(std::string, std::vector<cp_info*>&);
@@ -65,25 +99,24 @@ private:
 	
 	int genNameAndType(int, int, std::vector<cp_info*>&);
 
-	int lookupConstantTable(unsigned __int8 tag, std::string target, std::vector<cp_info*>&);
+	int lookupConstantTable(unsigned __int8 tag, std::string target);
 	
-	int Assembler::lookupClassFromConstantPool(std::string target, std::vector<cp_info*>& pool);
+	int lookupField(std::string);
+
+	int Assembler::lookupClassFromConstantPool(std::string target);
 	
-	int Assembler::lookupUTF8FromConstantPool(std::string target, std::vector <cp_info*>&);
+	int Assembler::lookupUTF8FromConstantPool(std::string target);
 	
 	int Assembler::lookupNameTypeFromConstantPool(__int16 name, __int16 type, std::vector<cp_info*>&);
 	
 	bool Assembler::isEqual(int size, unsigned char* bytes, std::string s);
 
 public:
-	friend ConstantVisitor;
-
+	
+	friend class CodeGenVisitor;
+	
 	Analyzer analyzer;
-	
-	std::vector<Field_Method_info*> field_info_v;
 
-	std::vector<Field_Method_info*> method_info_v;
-	
 	void prepare();
 	
 	void startGen(std::string dir);
@@ -92,48 +125,70 @@ public:
 	
 	void genConstantPool(BlockSymbolTable*);
 	
-	//java class is big-endien coded.
-	inline static unsigned int littleToBig(unsigned int num) 
-	{
-		return ((0xFF000000 & num) >> 24) |
-			((0x00FF0000 & num) >> 8) |
-			((0x0000FF00 & num) << 8) |
-			((0x000000FF & num) << 24);
-	}
-
-	inline static unsigned __int16 littleToBig(unsigned __int16 num)
-	{
-		return ((0xFF00 & num) >> 8) |
-			((0x00FF & num) << 8);
-	}
+	
 };
 
-class ConstantVisitor :IVisitor
+class CodeGenResult
 {
 public:
-	void visit(std::shared_ptr<Expression> exp) 
+	int max_stack;
+};
+
+class CodeGenVisitor : IVisitor
+{
+public:
+	class Instruction 
 	{
-		switch (exp->node_type)
-		{
-		case LITERAL_EXP:
-			visit(std::dynamic_pointer_cast<LiteralExpression>(exp));
-		}
+		char opcode; //one byte long opcode
+		int length;  //length of operand
+		char* operand;
+	};
+	Assembler& assembler;
+
+	static std::map<std::string, char> maps;
+
+	int max_stack;
+	
+	int max_variable;
+
+	int byte_length;
+
+	std::map<std::string, int> variable_table;
+	CodeGenVisitor(Assembler& assembler) : assembler(assembler) {
+		max_stack = 0;
+		max_variable = 0;
+		byte_length = 0;
 	}
 
-	void visit(std::shared_ptr<PranExpression> node) 
+	void  reset() 
 	{
-
+		max_stack = 0;
+		max_variable = 0;
+		byte_length = 0;
+		variable_table.clear();
 	}
+	
+	void visit(std::shared_ptr<MethodDefinition> node);
 
-	void visit(std::shared_ptr<BinaryExpression> node) 
-	{
+	void visit(std::shared_ptr<Statement> node);
 
-	}
+	void visit(std::shared_ptr<IfStatement> node);
 
-	void visit(std::shared_ptr<LiteralExpression> node) 
-	{
-		if (node->token.type == TK_STR_CONST) {
-			
-		}
-	}
+	void visit(std::shared_ptr<WhileStatement> node);
+
+	void visit(std::shared_ptr<BlockStatement> node);
+
+	void visit(std::shared_ptr<Expression> node);
+
+	void CodeGenVisitor::visit(std::shared_ptr<BinaryExpression> node);
+
+	void visit(std::shared_ptr<ClassCreatorExpression> node);
+
+	void visit(std::shared_ptr<MethodInvocationExpression>  node);
+
+	void visit(std::shared_ptr<VariableDeclareExpression> node);
+
+	void visit(std::shared_ptr<LiteralExpression> node);
+
+	void visit(std::shared_ptr<PranExpression> node);
 };
