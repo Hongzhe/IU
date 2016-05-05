@@ -27,7 +27,7 @@ int main()
 	Parser parser;
 	//parser.prepare("c:/code/IU/test/class_inherit_test.IU");
 //	shared_ptr<ClassNode> inherit_stmt = parser.parse();
-	parser.prepare("c:/code/IU/test/class_test.IU");
+	parser.prepare("d:/code/IU/test/class_test.IU");
 	shared_ptr<ClassNode> stmt = parser.parse();
 
 

@@ -128,10 +128,54 @@ public:
 	
 };
 
-class CodeGenResult
+class Instructions
 {
 public:
-	int max_stack;
+	std::map<std::string, uint8_t> instructions;
+	void init()
+	{
+		instructions["iconst_0"] = 0x03;
+		instructions["iconst_1"] = 0x04;
+		instructions["iconst_2"] = 0x05;
+		instructions["iconst_3"] = 0x06;
+		instructions["iconst_4"] = 0x07;
+		instructions["iconst_5"] = 0x08;
+
+		instructions["aload"] = 0x19;
+		instructions["iload"] = 0x15;
+		instructions["iload_0"] = 0x1a;
+		instructions["iload_1"] = 0x1b;
+		instructions["iload_2"] = 0x1c;
+		instructions["iload_3"] = 0x1d;
+
+		instructions["istore"] = 0x36;
+		instructions["istore_0"] = 0x3b;
+		instructions["istore_1"] = 0x3c;
+		instructions["istore_3"] = 0x3d;
+
+		instructions["pop"] = 0x57;
+		instructions["pop2"] = 0x58;
+		instructions["dup"] = 0x59;
+		instructions["dup2"] = 0x5c;
+		instructions["dup_x1"] = 0x5a;
+		instructions["dup_x2"] = 0x5b;
+		instructions["dup2_x1"] = 0x5d;
+		instructions["dup2_x2"] = 0x5e;
+
+		instructions["iadd"] = 0x60;
+		instructions["isub"] = 0x64;
+		instructions["imul"] = 0x68;
+		instructions["idiv"] = 0x6c;
+		instructions["irem"] = 0x70;
+		instructions["ineg"] = 0x74;
+		instructions["ishl"] = 0x78;
+		instructions["ishr"] = 0x7a;
+		instructions["iand"] = 0x7e;
+		
+		instructions["ior"] = 0x80;
+		instructions["ixor"] = 0x82;
+		instructions["iinc"] = 0x84;
+	}
 };
 
 class CodeGenVisitor : IVisitor
@@ -145,19 +189,23 @@ public:
 	};
 	Assembler& assembler;
 
-	static std::map<std::string, char> maps;
-
 	int max_stack;
 	
 	int max_variable;
 
 	int byte_length;
+	
+	Instructions instructions;
 
-	std::map<std::string, int> variable_table;
+	std::vector<std::string>local_variable;
+
+	//std::map<std::string, int> variable_table;
+	
 	CodeGenVisitor(Assembler& assembler) : assembler(assembler) {
 		max_stack = 0;
 		max_variable = 0;
 		byte_length = 0;
+		instructions.init();
 	}
 
 	void  reset() 
@@ -165,7 +213,7 @@ public:
 		max_stack = 0;
 		max_variable = 0;
 		byte_length = 0;
-		variable_table.clear();
+		local_variable.clear();
 	}
 	
 	void visit(std::shared_ptr<MethodDefinition> node);
@@ -180,7 +228,7 @@ public:
 
 	void visit(std::shared_ptr<Expression> node);
 
-	void CodeGenVisitor::visit(std::shared_ptr<BinaryExpression> node);
+	void visit(std::shared_ptr<BinaryExpression> node);
 
 	void visit(std::shared_ptr<ClassCreatorExpression> node);
 

@@ -214,7 +214,7 @@ int Assembler::genClassInfo(std::string classname, vector<cp_info*>& pool)
 	int name_index = genUTF8Constant(classname, pool);
 	info->name_index = name_index;
 	pool.push_back(info);
-	return pool.size() - 1;
+	return (int)pool.size() - 1;
 }
 
 int Assembler::genNameAndType(int nameindex, int typeindex, std::vector<cp_info*>& pool)
@@ -225,7 +225,7 @@ int Assembler::genNameAndType(int nameindex, int typeindex, std::vector<cp_info*
 	info->name_index = nameindex;
 	info->descriptor_index = typeindex;
 	pool.push_back(info);
-	return pool.size() - 1;
+	return (int)pool.size() - 1;
 }
 
 int Assembler::genNameAndType(std::string name, std::string type, std::vector<cp_info*>& pool)
@@ -249,7 +249,7 @@ int Assembler::genUTF8Constant(std::string content, vector<cp_info*>& pool)
 	}
 	info->byte[length] = '\0';
 	pool.push_back(info);
-	return pool.size() - 1;
+	return (int)pool.size() - 1;
 }
 
 /*method reference contains class info and method's name and its descriptor*/
@@ -268,7 +268,7 @@ int Assembler::genMethodRef(int classindex, int nameAndType)
 	info->class_index = classindex;
 	info->name_and_type_index = nameAndType;
 	constant_pool.push_back(info);
-	return constant_pool.size() - 1;
+	return (int)constant_pool.size() - 1;
 }
 
 int Assembler::lookupNameTypeFromConstantPool(__int16 name, __int16 type, std::vector<cp_info*>& pool)
@@ -424,7 +424,7 @@ void Assembler::writeConstantPool(std::vector<cp_info*>& pool)
 
 void Assembler::writeFieldOrMethods(std::vector<Field_Method_info*>& collections)
 {
-	writeInt16(collections.size());
+	writeInt16((unsigned short)collections.size());
 	for (auto it = collections.cbegin(); it != collections.cend(); it++)
 	{
 		Field_Method_info* info = *it;
@@ -435,14 +435,12 @@ void Assembler::writeFieldOrMethods(std::vector<Field_Method_info*>& collections
 	}
 }
 
-/*generate code attribute of method definition.*/
-void genCodeAttribute()
-{
-	//
-}
 
+
+//Below are visitors for Expression
 void CodeGenVisitor::visit(shared_ptr<Expression> node)
 {
+	if (!node) return;
 	switch (node->node_type)
 	{
 	case CREATOR_EXP:
@@ -465,7 +463,7 @@ void CodeGenVisitor::visit(shared_ptr<Expression> node)
 
 void CodeGenVisitor::visit(std::shared_ptr<VariableDeclareExpression> node)
 {
-	variable_table[node->id.lexem] = max_variable;
+	//variable_table[node->id.lexem] = max_variable;
 	if (max_variable > 3) {
 		//astore max_variable
 	}
@@ -485,7 +483,7 @@ void CodeGenVisitor::visit(shared_ptr<LiteralExpression>(node))
 	else if (node->token.type == TK_INT_CONST) {
 		string intstr = node->token.lexem;
 		int val = 0;
-		sscanf(intstr.c_str(), "%D", &val);
+		sscanf_s(intstr.c_str(), "%d", &val);
 		if (val >= 0 && val < 6) {
 			//iconst_n iconst_0 + val
 		}
@@ -499,44 +497,78 @@ void CodeGenVisitor::visit(shared_ptr<LiteralExpression>(node))
 	else if (node->token.lexem == "false") {
 		//iconst_0
 	}
-	else if (node->token.type == TK_OBJ_ID) {
-		//lookup symbol table
-		string obj = node->token.lexem;
-		if (variable_table.find(obj) != variable_table.end()) {
-			//iload_ variable_table[obj];
-		}
-		else {
-			int field_index = assembler.lookupField(obj);
-			if (field_index == -1) {
-				//error
-				return;
-			}
-			//aload_0
-			//getField field_index;
-		}
-	}
 }
 
 void CodeGenVisitor::visit(shared_ptr<BinaryExpression> node)
 {
-	node->left;
-	node->right;
+	shared_ptr<Expression> left = node->left;
+	shared_ptr<Expression> right = node->right;
 	Token_Type optype = node->op.type;
-	//operations  could be arithmetic operation. assignment 
-	// need to know the type of operands. track back two element in the stack to detemrmine the type.
-	switch (optype) 
-	{
-	case TK_ADD:
-		break;
-	case TK_MINUS:
-		break;
-	case TK_MOD:
-		break;
-	case TK_MULTIPLY:
-		break;
+
+	if (optype == TK_ASSIGN) {
+		visit(right);
+		int localindex = -1;
+		if (left->node_type == LITERAL_EXP) {
+			shared_ptr<LiteralExpression> leftexp = dynamic_pointer_cast<LiteralExpression>(left);
+			if (leftexp->token.type == TK_OBJ_ID) {
+				for (int i = 0; i < local_variable.size(); i++) {
+					if (leftexp->token.lexem == local_variable[i]) {
+						localindex = i;
+						break;
+					}
+				}
+				if (localindex == -1) {
+					//error local variable not found.
+				}
+				else {
+					int field_index = assembler.lookupField(leftexp->token.lexem);
+					if (field_index == -1) {
+						//error undefined variable.
+						return;
+					}
+					//aload_0
+					//getField field_index;
+				}
+				localindex++;
+			}
+		}
+		else if (left->node_type == VAR_DECL_EXP) {
+			shared_ptr<VariableDeclareExpression> declare = dynamic_pointer_cast<VariableDeclareExpression>(left);
+			local_variable.push_back(declare->id.lexem);
+			localindex = (int)local_variable.size();
+		}
+		//istore_localindex;
 	}
+	else {
+		visit(left);
+		visit(right);
+		switch (optype)
+		{
+		case TK_ADD:
+			break;
+		case TK_MINUS:
+			break;
+		case TK_MOD:
+			break;
+		case TK_MULTIPLY:
+			break;
+		case TK_GT:
+			break;
+		case TK_GEQ:
+			break;
+		case TK_LE:
+			break;
+		case TK_LEQ:
+			break;
+		case TK_EQ:
+			break;
+		}
+	}
+
 }
 
+
+//class creator visitor
 void CodeGenVisitor::visit(shared_ptr<ClassCreatorExpression> node)
 {
 	//initialize parent class first
@@ -548,6 +580,7 @@ void CodeGenVisitor::visit(shared_ptr<ClassCreatorExpression> node)
 	//invokespecial index_of_method.
 }
 
+//method invocation visitor
 void CodeGenVisitor::visit(shared_ptr<MethodInvocationExpression> node)
 {
 	//search for method name and its descriptor
@@ -570,7 +603,6 @@ void CodeGenVisitor::visit(shared_ptr<MethodInvocationExpression> node)
 	}
 
 	//aload_0
-	auto arguments = node->arguments;
 	for (auto it = arguments.cbegin(); it != arguments.cend(); it++)
 	{
 		visit(*it);
@@ -594,6 +626,7 @@ void CodeGenVisitor::visit(shared_ptr<MethodInvocationExpression> node)
 
 }
 
+//below are visitors for Statement
 void CodeGenVisitor::visit(shared_ptr<Statement> node)
 {
 	switch (node->node_type)
@@ -616,5 +649,35 @@ void CodeGenVisitor::visit(std::shared_ptr<IfStatement> node)
 	visit(statement);
 	//goto byte_length;
 	shared_ptr<Expression> condition = node->condition;
+
+}
+
+void CodeGenVisitor::visit(shared_ptr<WhileStatement> node)
+{
+	auto condition = node->condition;
+	visit(condition);
+	shared_ptr<BlockStatement> block = node->block;
+	visit(block);
+}
+
+void CodeGenVisitor::visit(shared_ptr<BlockStatement> node)
+{
+	vector<shared_ptr<Statement>> stmts = node->stmts;
+	for (auto it = stmts.cbegin(); it != stmts.cend(); it++) {
+		visit(*it);
+	}
+}
+
+//
+void CodeGenVisitor::visit(std::shared_ptr<MethodDefinition> node)
+{
+	vector<shared_ptr<Formal>>arguments = node->arguments;
+	local_variable.clear();
+	for (shared_ptr<Formal> argument : arguments) {
+		local_variable.push_back(argument->id.lexem);
+		max_variable++;
+	}
+	shared_ptr<BlockStatement> statement = node->block;
+	visit(statement);
 
 }
