@@ -142,6 +142,11 @@ public:
 		instructions["iconst_5"] = 0x08;
 
 		instructions["aload"] = 0x19;
+		instructions["aload_0"] = 0x2a;
+		instructions["aload_1"] = 0x2b;
+		instructions["aload_2"] = 0x2c;
+		instructions["aload_3"] = 0x2d;
+
 		instructions["iload"] = 0x15;
 		instructions["iload_0"] = 0x1a;
 		instructions["iload_1"] = 0x1b;
@@ -152,6 +157,8 @@ public:
 		instructions["istore_0"] = 0x3b;
 		instructions["istore_1"] = 0x3c;
 		instructions["istore_3"] = 0x3d;
+		instructions["bipush"] = 0x10;
+		instructions["sipush"] = 0x11;
 
 		instructions["pop"] = 0x57;
 		instructions["pop2"] = 0x58;
@@ -171,10 +178,40 @@ public:
 		instructions["ishl"] = 0x78;
 		instructions["ishr"] = 0x7a;
 		instructions["iand"] = 0x7e;
-		
+		instructions["iushr"] = 0x7d;
+
 		instructions["ior"] = 0x80;
 		instructions["ixor"] = 0x82;
 		instructions["iinc"] = 0x84;
+	
+		instructions["ifeq"] = 0x99;
+		instructions["iflt"] = 0x9b;
+		instructions["ifge"] = 0x9c;
+		instructions["ifgt"] = 0x9d;
+		instructions["ifle"] = 0x9e;
+		instructions["if_icmpeq"] = 0x9f;
+		instructions["if_icmpne"] = 0xa0;
+		instructions["if_icmplt"] = 0xa1;
+		instructions["if_icmpge"] = 0xa2;
+		instructions["if_icmpgt"] = 0xa3;
+		instructions["if_icmple"] = 0xa4;
+
+		instructions["getfield"] = 0xb4;
+		instructions["putfield"] = 0xb5;
+		instructions["invokevirtual"] = 0xb6;
+		instructions["invokespecial"] = 0xb7;
+		instructions["invokedynamic"] = 0xba;
+		instructions["new"] = 0xbb;
+
+		instructions["goto"] = 0xa7;
+		instructions["ret"] = 0xa9;
+		instructions["ireturn"] = 0xac;
+		instructions["areturn"] = 0xb0;
+		instructions["return"] = 0xb1;
+
+		instructions["ifnull"] = 0xc6;
+		instructions["ifnonnull"] = 0xc7;
+
 	}
 };
 
@@ -195,7 +232,7 @@ public:
 
 	int byte_length;
 	
-	Instructions instructions;
+	static Instructions instructions;
 
 	std::vector<std::string>local_variable;
 

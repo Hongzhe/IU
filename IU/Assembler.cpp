@@ -489,6 +489,8 @@ void CodeGenVisitor::visit(shared_ptr<LiteralExpression>(node))
 		}
 		else {
 			//bipush val
+			instructions.instructions["bipush"];
+
 		}
 	}
 	else if (node->token.lexem == "true") {
