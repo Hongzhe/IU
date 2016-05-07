@@ -436,7 +436,6 @@ void Assembler::writeFieldOrMethods(std::vector<Field_Method_info*>& collections
 }
 
 
-
 //Below are visitors for Expression
 void CodeGenVisitor::visit(shared_ptr<Expression> node)
 {
@@ -469,6 +468,7 @@ void CodeGenVisitor::visit(std::shared_ptr<VariableDeclareExpression> node)
 	}
 	else {
 		//astore_max_variable;
+
 	}
 	max_variable++;
 }
@@ -479,25 +479,45 @@ void CodeGenVisitor::visit(shared_ptr<LiteralExpression>(node))
 	if (node->token.type == TK_STR_CONST) {
 		int str_index = assembler.lookupUTF8FromConstantPool(node->token.lexem);
 		//ldc str_index;
+		Instruction* instruction = new Instruction();
+		instruction->opcode = instructions.instructions["ldc"];
+		instruction->operand = str_index;
+		instruction->length = 5;
+		appendInstruction(instruction);
+		updateStack(1);
 	}
 	else if (node->token.type == TK_INT_CONST) {
 		string intstr = node->token.lexem;
 		int val = 0;
 		sscanf_s(intstr.c_str(), "%d", &val);
+		Instruction* instruction = new Instruction();
 		if (val >= 0 && val < 6) {
 			//iconst_n iconst_0 + val
+			instruction->opcode = instructions.instructions["iconst_" + val];
+			instruction->length = 1;
+			appendInstruction(instruction);
 		}
 		else {
 			//bipush val
-			instructions.instructions["bipush"];
-
+			instruction->opcode = instructions.instructions["bipush"];
+			instruction->operand = val;
+			appendInstruction(instruction);
 		}
+		updateStack(1);
 	}
 	else if (node->token.lexem == "true") {
-		//iconst_1
+		Instruction* instruction = new Instruction();
+		instruction->opcode = instructions.instructions["iconst_1"];
+		instruction->length = 1;
+		appendInstruction(instruction);
+		updateStack(1);
 	}
 	else if (node->token.lexem == "false") {
-		//iconst_0
+		Instruction* instruction = new Instruction();
+		instruction->opcode = instructions.instructions["iconst_0"];
+		instruction->length = 1;
+		appendInstruction(instruction);
+		updateStack(1);
 	}
 }
 
@@ -528,6 +548,10 @@ void CodeGenVisitor::visit(shared_ptr<BinaryExpression> node)
 						//error undefined variable.
 						return;
 					}
+					Instruction* load = new Instruction(instructions.instructions["aload_0"], 1);
+					appendInstruction(load);
+					Instruction* field = new Instruction(instructions.instructions["getField"], (uint32_t)field_index, 5);
+					appendInstruction(field);
 					//aload_0
 					//getField field_index;
 				}
@@ -540,6 +564,19 @@ void CodeGenVisitor::visit(shared_ptr<BinaryExpression> node)
 			localindex = (int)local_variable.size();
 		}
 		//istore_localindex;
+		Instruction* store = new Instruction();
+		if (localindex < 4) {
+			string op = "istore_" + localindex;
+			store->opcode = instructions.instructions[op];
+			store->length = 1;
+		}
+		else {
+			store->opcode = instructions.instructions["istore"];
+			store->operand = localindex;
+			store->length = 5;
+		}
+		appendInstruction(store);
+		updateStack(1);
 	}
 	else {
 		visit(left);
@@ -547,12 +584,25 @@ void CodeGenVisitor::visit(shared_ptr<BinaryExpression> node)
 		switch (optype)
 		{
 		case TK_ADD:
+			Instruction* instruction = new Instruction();
+			instruction->opcode = instructions.instructions["iadd"];
+			appendInstruction(instruction);
+			updateStack(-1);
 			break;
 		case TK_MINUS:
+			Instruction* instruction = new Instruction(instructions.instructions["isub"], 1);
+			appendInstruction(instruction);
+			updateStack(-1);
 			break;
 		case TK_MOD:
+			Instruction* instruction = new Instruction(instructions.instructions["irem"], 1);
+			appendInstruction(instruction);
+			updateStack(-1);
 			break;
 		case TK_MULTIPLY:
+			Instruction* instruction = new Instruction(instructions.instructions["imul"], 1);
+			appendInstruction(instruction);
+			updateStack(-1);
 			break;
 		case TK_GT:
 			break;
@@ -573,13 +623,15 @@ void CodeGenVisitor::visit(shared_ptr<BinaryExpression> node)
 //class creator visitor
 void CodeGenVisitor::visit(shared_ptr<ClassCreatorExpression> node)
 {
-	//initialize parent class first
-	//initialize the this class and initialize its field;
-
 	int class_index = assembler.lookupConstantTable(0x07, node->name.lexem);
-	//new class_index
-	//dup
-	//invokespecial index_of_method.
+	int init_method_ref = assembler.methodref_index_map["<init>"];
+	Instruction* instruction = new Instruction(instructions.instructions["new"], class_index, 3);
+	Instruction* dup = new Instruction(instructions.instructions["dup"], 1);
+	Instruction* invokespecial = new Instruction(instructions.instructions["invokespecial"], init_method_ref, 3);
+	appendInstruction(instruction);
+	appendInstruction(dup);
+	appendInstruction(invokespecial);
+	updateStack(1);
 }
 
 //method invocation visitor
@@ -603,29 +655,23 @@ void CodeGenVisitor::visit(shared_ptr<MethodInvocationExpression> node)
 			break;
 		}
 	}
-
+	char returntype = descriptor->byte[i + 1];
+	
 	//aload_0
+	Instruction* aload0 = new Instruction(instructions.instructions["aload_0"], 1);
+	appendInstruction(aload0);
+	updateStack(1);
 	for (auto it = arguments.cbegin(); it != arguments.cend(); it++)
 	{
 		visit(*it);
 	}
-	//invokevirtual name_index
-	
-	char returntype = descriptor->byte[i + 1];
-	switch (returntype) {
-	case 'V':
-		//return
-		break;
-	case 'I':
-		//ireturn
-		break;
-	case 'L':
-		//areturn
-		break;
+	int prevstack = 1 + arguments.size();
+	if (returntype != 'V') {
+		prevstack--;
 	}
-	
-	//return 
-
+	Instruction* invoke = new Instruction(instructions.instructions["invokevirtual"], name_index, 3);
+	appendInstruction(invoke);
+	updateStack(prevstack * -1);
 }
 
 //below are visitors for Statement
@@ -682,4 +728,28 @@ void CodeGenVisitor::visit(std::shared_ptr<MethodDefinition> node)
 	shared_ptr<BlockStatement> statement = node->block;
 	visit(statement);
 
+}
+
+void CodeGenVisitor::appendInstruction(Instruction* instruction) 
+{
+	codes.push_back(instruction);
+	byte_length += instruction->length;
+}
+
+void CodeGenVisitor::updateStack(int val)
+{
+	current_stack += val;
+	if (current_stack > max_stack) {
+		max_stack = current_stack;
+	}
+}
+
+
+void CodeGenVisitor::freeCodes()
+{
+	for (auto it = codes.begin(); it != codes.end(); it++) {
+		delete *it;
+		*it = NULL;
+	}
+	codes.clear();
 }

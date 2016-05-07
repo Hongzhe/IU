@@ -146,7 +146,8 @@ public:
 		instructions["aload_1"] = 0x2b;
 		instructions["aload_2"] = 0x2c;
 		instructions["aload_3"] = 0x2d;
-
+		
+		instructions["ldc"] = 0x12;
 		instructions["iload"] = 0x15;
 		instructions["iload_0"] = 0x1a;
 		instructions["iload_1"] = 0x1b;
@@ -197,7 +198,7 @@ public:
 		instructions["if_icmple"] = 0xa4;
 
 		instructions["getfield"] = 0xb4;
-		instructions["putfield"] = 0xb5;
+		instructions["putfield"] =	0xb5;
 		instructions["invokevirtual"] = 0xb6;
 		instructions["invokespecial"] = 0xb7;
 		instructions["invokedynamic"] = 0xba;
@@ -218,21 +219,31 @@ public:
 class CodeGenVisitor : IVisitor
 {
 public:
+
 	class Instruction 
 	{
+	public:
+		Instruction() {}
+		Instruction(char op, int len) : opcode(op), length(len) {}
+		Instruction(char op, uint32_t operand, int len) : opcode(op), length(len), operand(operand) {}
+
 		char opcode; //one byte long opcode
-		int length;  //length of operand
-		char* operand;
+		uint32_t operand;
+		int length;
 	};
 	Assembler& assembler;
 
 	int max_stack;
+
+	int current_stack;
 	
 	int max_variable;
 
 	int byte_length;
 	
 	static Instructions instructions;
+	
+	std::vector<Instruction*> codes;
 
 	std::vector<std::string>local_variable;
 
@@ -240,19 +251,32 @@ public:
 	
 	CodeGenVisitor(Assembler& assembler) : assembler(assembler) {
 		max_stack = 0;
+		current_stack = 0;
 		max_variable = 0;
 		byte_length = 0;
 		instructions.init();
 	}
 
+	~CodeGenVisitor()
+	{
+		freeCodes();
+	}
+
 	void  reset() 
 	{
 		max_stack = 0;
+		current_stack = 0;
 		max_variable = 0;
 		byte_length = 0;
 		local_variable.clear();
 	}
 	
+	void appendInstruction(Instruction* instruction);
+	
+	void updateStack(int val);
+
+	void freeCodes();
+
 	void visit(std::shared_ptr<MethodDefinition> node);
 
 	void visit(std::shared_ptr<Statement> node);
