@@ -241,15 +241,15 @@ public:
 
 	int byte_length;
 	
-	static Instructions instructions;
+	std::string current_returntype;
+
+	Instructions instructions;
 	
 	std::vector<Instruction*> codes;
 
 	std::vector<std::string>local_variable;
-
-	//std::map<std::string, int> variable_table;
 	
-	CodeGenVisitor(Assembler& assembler) : assembler(assembler) {
+	CodeGenVisitor(Assembler assembler, Instructions ins) : assembler(assembler), instructions(ins) {
 		max_stack = 0;
 		current_stack = 0;
 		max_variable = 0;
@@ -287,6 +287,8 @@ public:
 
 	void visit(std::shared_ptr<BlockStatement> node);
 
+	void visit(std::shared_ptr<ExpStatement> node);
+
 	void visit(std::shared_ptr<Expression> node);
 
 	void visit(std::shared_ptr<BinaryExpression> node);
@@ -300,4 +302,7 @@ public:
 	void visit(std::shared_ptr<LiteralExpression> node);
 
 	void visit(std::shared_ptr<PranExpression> node);
+
+private:
+	Instruction* visitConditionExp(std::shared_ptr<Expression> node);
 };

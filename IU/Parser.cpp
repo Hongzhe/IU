@@ -503,7 +503,8 @@ shared_ptr<Expression> Parser::parse_primary()
 	}
 	else if (token.type == TK_STR_CONST ||
 		token.type == TK_INT_CONST || token.lexem == "true" 
-		|| token.lexem == "false") {
+		|| token.lexem == "false" || token.lexem == "break"
+		|| token.lexem == "continue") {
 		shared_ptr<LiteralExpression> node = make_shared<LiteralExpression>(token);
 		node->node_type = LITERAL_EXP;
 		node->lineno = lexer.getLineno();

@@ -189,11 +189,11 @@ void Assembler::genConstantPool(BlockSymbolTable* symboltable)
 	int init_index = genMethodRef(classname, "<init>", "()v", b);
 	methodref_index_map["<init>"] = init_index;
 	vector<shared_ptr<Formal>> fields = current_ast->fields;
-	for (int i = 0; i < fields.size(); i++) {
+	for (int i = 0; i < (int)fields.size(); i++) {
 		extractConstantFromField(fields[i], cur_class_index, b);
 	}
 	vector<shared_ptr<MethodDefinition>> methods = current_ast->methods;
-	for (int i = 0; i < methods.size(); i++) {
+	for (int i = 0; i < (int)methods.size(); i++) {
 		extractConstantFromMethod(methods[i], b);
 	}
 	writeConstantPool(b);
@@ -274,7 +274,7 @@ int Assembler::genMethodRef(int classindex, int nameAndType)
 int Assembler::lookupNameTypeFromConstantPool(__int16 name, __int16 type, std::vector<cp_info*>& pool)
 {
 	int index = -1;
-	for (int i = 0; i < pool.size(); i++) {
+	for (int i = 0; i < (int)pool.size(); i++) {
 		cp_info* cur = pool[i];
 		if (cur->tag != 0xb0) break;
 		CONSTANT_NameAndType_info* info = dynamic_cast<CONSTANT_NameAndType_info*>(cur);
@@ -289,7 +289,7 @@ int Assembler::lookupNameTypeFromConstantPool(__int16 name, __int16 type, std::v
 int Assembler::lookupUTF8FromConstantPool(std::string target)
 {
 	int index = -1;
-	for (int i = 0; i < constant_pool.size(); i++)
+	for (int i = 0; i < (int)constant_pool.size(); i++)
 	{
 		bool found = true;
 		cp_info* info = constant_pool[i];
@@ -303,7 +303,7 @@ int Assembler::lookupUTF8FromConstantPool(std::string target)
 
 int Assembler::lookupClassFromConstantPool(std::string target)
 {
-	for (int i = 0; i < constant_pool.size(); i++)
+	for (int i = 0; i < (int)constant_pool.size(); i++)
 	{
 		cp_info* info = constant_pool[i];
 		if (info->tag != 0x07) continue;
@@ -533,7 +533,7 @@ void CodeGenVisitor::visit(shared_ptr<BinaryExpression> node)
 		if (left->node_type == LITERAL_EXP) {
 			shared_ptr<LiteralExpression> leftexp = dynamic_pointer_cast<LiteralExpression>(left);
 			if (leftexp->token.type == TK_OBJ_ID) {
-				for (int i = 0; i < local_variable.size(); i++) {
+				for (int i = 0; i < (int)local_variable.size(); i++) {
 					if (leftexp->token.lexem == local_variable[i]) {
 						localindex = i;
 						break;
@@ -581,44 +581,33 @@ void CodeGenVisitor::visit(shared_ptr<BinaryExpression> node)
 	else {
 		visit(left);
 		visit(right);
+		Instruction* instruction = new Instruction();
+		instruction->length = 1;
 		switch (optype)
 		{
 		case TK_ADD:
-			Instruction* instruction = new Instruction();
 			instruction->opcode = instructions.instructions["iadd"];
-			appendInstruction(instruction);
-			updateStack(-1);
 			break;
 		case TK_MINUS:
-			Instruction* instruction = new Instruction(instructions.instructions["isub"], 1);
-			appendInstruction(instruction);
-			updateStack(-1);
+			instruction->opcode = instructions.instructions["isub"];
 			break;
 		case TK_MOD:
-			Instruction* instruction = new Instruction(instructions.instructions["irem"], 1);
-			appendInstruction(instruction);
-			updateStack(-1);
+			instruction->opcode = instructions.instructions["irem"];
 			break;
 		case TK_MULTIPLY:
-			Instruction* instruction = new Instruction(instructions.instructions["imul"], 1);
-			appendInstruction(instruction);
-			updateStack(-1);
+			instruction->opcode = instructions.instructions["imul"];
 			break;
-		case TK_GT:
-			break;
-		case TK_GEQ:
-			break;
-		case TK_LE:
-			break;
-		case TK_LEQ:
-			break;
-		case TK_EQ:
-			break;
+		default:
+			cerr << "Undefined operator " + node->op.lexem << endl;
+			delete instruction;
+			freeCodes();
+			return;
 		}
+		appendInstruction(instruction);
+		updateStack(-1);
 	}
 
 }
-
 
 //class creator visitor
 void CodeGenVisitor::visit(shared_ptr<ClassCreatorExpression> node)
@@ -691,21 +680,102 @@ void CodeGenVisitor::visit(shared_ptr<Statement> node)
 	}
 }
 
+
+
+CodeGenVisitor::Instruction* CodeGenVisitor::visitConditionExp(std::shared_ptr<Expression> condition)
+{
+	Instruction* cmp = new Instruction();
+	uint8_t code = 0x00;
+	if (condition->node_type = BINARY_EXP) {
+		shared_ptr<BinaryExpression> exp = dynamic_pointer_cast<BinaryExpression>(condition);
+		Token op = exp->op;
+		if (op.type == TK_LE) {
+			code = instructions.instructions["if_icmpge"];
+		}
+		else if (op.type == TK_LEQ) {
+			code = instructions.instructions["if_icmpgt"];
+		}
+		else if (op.type == TK_GT) {
+			code = instructions.instructions["if_icmple"];
+		}
+		else if (op.type == TK_GEQ) {
+			code = instructions.instructions["if_icmplt"];
+		}
+		else if (op.type == TK_EQ) {
+			code = instructions.instructions["if_icmpeq"];
+		}
+	}
+	else if (condition->node_type == METHOD_INVOC_EXP) {
+		code = instructions.instructions["ifeq"];
+	}
+	cmp->opcode = code;
+	cmp->length = 3;
+	return cmp;
+}
+
 void CodeGenVisitor::visit(std::shared_ptr<IfStatement> node)
 {
 	shared_ptr<Statement> statement = node->block;
-	visit(statement);
-	//goto byte_length;
 	shared_ptr<Expression> condition = node->condition;
-
+	Instruction* cmp = visitConditionExp(condition);
+	appendInstruction(cmp);
+	int ifindex = codes.size() - 1;
+	visit(statement);
+	Instruction* ifinstruction = codes[ifindex];
+	ifinstruction->operand = byte_length - 1;
+	if (node->elsepart) {
+		//insert goto instruction.
+		Instruction* skipelse = new Instruction();
+		skipelse->opcode = instructions.instructions["goto"];
+		skipelse->length = 3;
+		appendInstruction(skipelse);
+		int gotoIndex = codes.size() - 1;
+		visit(node->elsepart);
+		codes[gotoIndex]->operand = byte_length;
+	}
 }
 
 void CodeGenVisitor::visit(shared_ptr<WhileStatement> node)
 {
 	auto condition = node->condition;
-	visit(condition);
+	int conditionIndex = byte_length;
+	Instruction* cmp = visitConditionExp(condition);
+	cmp->operand = byte_length + cmp->length;
+	appendInstruction(cmp);
 	shared_ptr<BlockStatement> block = node->block;
-	visit(block);
+	auto stmts = node->block->stmts;
+	int breakIndex = -1;
+	for (int i = 0; i < (int)stmts.size(); i++) {
+		auto cur = stmts[i];
+		if (cur->node_type == EXP_STMT) {
+			auto expstmt = dynamic_pointer_cast<ExpStatement>(cur);
+			auto exp = expstmt->expression;
+			if (exp->node_type == LITERAL_EXP) {
+				auto literalexp = dynamic_pointer_cast<LiteralExpression>(exp);
+				if (literalexp->token.lexem == "break") {
+					Instruction* breakins = new Instruction();
+					breakins->opcode = instructions.instructions["goto"];
+					breakins->length = 3;
+					appendInstruction(breakins);
+					breakIndex = codes.size() - 1;
+					continue;
+				}
+				else if (literalexp->token.lexem == "continue") {
+					Instruction* instruction = new Instruction(instructions.instructions["goto"], conditionIndex, 3);
+					appendInstruction(instruction);
+					continue;
+				}
+			}
+		}
+		visit(cur);
+	}
+	Instruction* gotoins = new Instruction(instructions.instructions["goto"], conditionIndex, 3);
+	appendInstruction(gotoins);
+	if (breakIndex != -1) {
+		Instruction* ins = codes[breakIndex];
+		ins->operand = byte_length;
+		appendInstruction(ins);
+	}
 }
 
 void CodeGenVisitor::visit(shared_ptr<BlockStatement> node)
@@ -716,7 +786,27 @@ void CodeGenVisitor::visit(shared_ptr<BlockStatement> node)
 	}
 }
 
-//
+void CodeGenVisitor::visit(std::shared_ptr<ExpStatement> node)
+{
+	if (!node) return;
+	if (node->node_type == RETURN_STMT) {
+		Instruction* ins;
+		if (current_returntype == "void") {
+			ins = new Instruction(instructions.instructions["return"], 1);
+		} 
+		else if (current_returntype == "Int" ||
+			current_returntype == "Bool") {
+			ins = new Instruction(instructions.instructions["ireturn"], 1);
+		}
+		else {
+			ins = new Instruction(instructions.instructions["areturn"], 1);
+		}
+		appendInstruction(ins);
+		return;
+	}
+
+}
+
 void CodeGenVisitor::visit(std::shared_ptr<MethodDefinition> node)
 {
 	vector<shared_ptr<Formal>>arguments = node->arguments;
@@ -726,8 +816,8 @@ void CodeGenVisitor::visit(std::shared_ptr<MethodDefinition> node)
 		max_variable++;
 	}
 	shared_ptr<BlockStatement> statement = node->block;
+	current_returntype = node->returntype.lexem;
 	visit(statement);
-
 }
 
 void CodeGenVisitor::appendInstruction(Instruction* instruction) 
