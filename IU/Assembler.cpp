@@ -22,7 +22,6 @@ void Assembler::startGen(string dir)
 		out.open(path, ios::binary);
 		genHead();
 		genConstantPool(it->second);
-		
 		out.close();
 	}
 }
@@ -462,15 +461,7 @@ void CodeGenVisitor::visit(shared_ptr<Expression> node)
 
 void CodeGenVisitor::visit(std::shared_ptr<VariableDeclareExpression> node)
 {
-	//variable_table[node->id.lexem] = max_variable;
-	if (max_variable > 3) {
-		//astore max_variable
-	}
-	else {
-		//astore_max_variable;
-
-	}
-	max_variable++;
+	//no bytecode are generated for variable declaration.
 }
 
 void CodeGenVisitor::visit(shared_ptr<LiteralExpression>(node))
@@ -527,7 +518,8 @@ void CodeGenVisitor::visit(shared_ptr<BinaryExpression> node)
 	shared_ptr<Expression> right = node->right;
 	Token_Type optype = node->op.type;
 
-	if (optype == TK_ASSIGN) {
+	if (optype == TK_ASSIGN) {  //assignment affecte local variable.
+		int startindex = codes.size() - 1;
 		visit(right);
 		int localindex = -1;
 		if (left->node_type == LITERAL_EXP) {
@@ -535,27 +527,30 @@ void CodeGenVisitor::visit(shared_ptr<BinaryExpression> node)
 			if (leftexp->token.type == TK_OBJ_ID) {
 				for (int i = 0; i < (int)local_variable.size(); i++) {
 					if (leftexp->token.lexem == local_variable[i]) {
-						localindex = i;
+						localindex = i + 1; //local_variable[0] is reserved for 'this'
 						break;
 					}
 				}
 				if (localindex == -1) {
-					//error local variable not found.
-				}
-				else {
 					int field_index = assembler.lookupField(leftexp->token.lexem);
 					if (field_index == -1) {
 						//error undefined variable.
 						return;
 					}
 					Instruction* load = new Instruction(instructions.instructions["aload_0"], 1);
-					appendInstruction(load);
-					Instruction* field = new Instruction(instructions.instructions["getField"], (uint32_t)field_index, 5);
+					for (int i = startindex; i < codes.size(); i++) {
+						//Instruction* tmp = codes[i];
+						codes[i+1] = codes[i];
+					}
+				//	appendInstruction(load);
+					codes[startindex] = load;
+					updateStack(1);
+					Instruction* field = new Instruction(instructions.instructions["putField"], (uint32_t)field_index, 3);
 					appendInstruction(field);
-					//aload_0
-					//getField field_index;
+					updateStack(-1);
+					return;
 				}
-				localindex++;
+				//localindex++;
 			}
 		}
 		else if (left->node_type == VAR_DECL_EXP) {
@@ -573,7 +568,7 @@ void CodeGenVisitor::visit(shared_ptr<BinaryExpression> node)
 		else {
 			store->opcode = instructions.instructions["istore"];
 			store->operand = localindex;
-			store->length = 5;
+			store->length = 3;
 		}
 		appendInstruction(store);
 		updateStack(1);
@@ -804,7 +799,6 @@ void CodeGenVisitor::visit(std::shared_ptr<ExpStatement> node)
 		appendInstruction(ins);
 		return;
 	}
-
 }
 
 void CodeGenVisitor::visit(std::shared_ptr<MethodDefinition> node)
