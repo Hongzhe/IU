@@ -10,6 +10,7 @@
 #include <iostream>
 #include <vector>
 #include <map>
+#include <unordered_map>
 
 class CodeGenVisitor;
 
@@ -103,12 +104,18 @@ private:
 	
 	int lookupField(std::string);
 
+	int lookupMethodRef(int class_index, int nameType_index);
+
+	int lookupMethodRef(std::string classname, std::string name, std::string type);
+
 	int Assembler::lookupClassFromConstantPool(std::string target);
 	
 	int Assembler::lookupUTF8FromConstantPool(std::string target);
 	
-	int Assembler::lookupNameTypeFromConstantPool(__int16 name, __int16 type, std::vector<cp_info*>&);
+	int Assembler::lookupNameTypeFromConstantPool(__int16 name, __int16 type);
 	
+	int Assembler::lookupNameTypeFromConstantPool(std::string name, std::string type);
+
 	bool Assembler::isEqual(int size, unsigned char* bytes, std::string s);
 
 public:
@@ -131,7 +138,7 @@ public:
 class Instructions
 {
 public:
-	std::map<std::string, uint8_t> instructions;
+	std::unordered_map<std::string, uint8_t> instructions;
 	void init()
 	{
 		instructions["iconst_0"] = 0x03;
@@ -254,7 +261,7 @@ public:
 		current_stack = 0;
 		max_variable = 0;
 		byte_length = 0;
-		instructions.init();
+		instructions.init();	
 	}
 
 	~CodeGenVisitor()
@@ -278,7 +285,7 @@ public:
 	void freeCodes();
 
 	void visit(std::shared_ptr<MethodDefinition> node);
-
+	
 	void visit(std::shared_ptr<Statement> node);
 
 	void visit(std::shared_ptr<IfStatement> node);
@@ -305,4 +312,13 @@ public:
 
 private:
 	Instruction* visitConditionExp(std::shared_ptr<Expression> node);
+
+	/* generate byte code for class constructor */
+	void genClassConstructor(std::shared_ptr<MethodDefinition> node);
+
+	void shuffleRight(int start, std::vector<Instruction*>& v);
+	
+	int findLocalVariable(std::string&);
+
+	Instruction* createLoadInstruction(std::string type, int index);
 };

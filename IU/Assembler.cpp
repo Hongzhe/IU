@@ -218,7 +218,7 @@ int Assembler::genClassInfo(std::string classname, vector<cp_info*>& pool)
 
 int Assembler::genNameAndType(int nameindex, int typeindex, std::vector<cp_info*>& pool)
 {
-	int found = lookupNameTypeFromConstantPool(nameindex, typeindex, pool);
+	int found = lookupNameTypeFromConstantPool(nameindex, typeindex);
 	if (found != -1) return found;
 	CONSTANT_NameAndType_info* info = new CONSTANT_NameAndType_info(0x0c);
 	info->name_index = nameindex;
@@ -270,11 +270,11 @@ int Assembler::genMethodRef(int classindex, int nameAndType)
 	return (int)constant_pool.size() - 1;
 }
 
-int Assembler::lookupNameTypeFromConstantPool(__int16 name, __int16 type, std::vector<cp_info*>& pool)
+int Assembler::lookupNameTypeFromConstantPool(__int16 name, __int16 type)
 {
 	int index = -1;
-	for (int i = 0; i < (int)pool.size(); i++) {
-		cp_info* cur = pool[i];
+	for (int i = 0; i < (int)constant_pool.size(); i++) {
+		cp_info* cur = constant_pool[i];
 		if (cur->tag != 0xb0) break;
 		CONSTANT_NameAndType_info* info = dynamic_cast<CONSTANT_NameAndType_info*>(cur);
 		if (info->name_index != name || info->descriptor_index != type)
@@ -283,6 +283,24 @@ int Assembler::lookupNameTypeFromConstantPool(__int16 name, __int16 type, std::v
 		break;
 	}
 	return index;
+}
+
+int Assembler::lookupNameTypeFromConstantPool(string name, string type)
+{
+	int name_index = lookupUTF8FromConstantPool(name);
+	if (name_index == -1)
+	{
+		cerr << name << " is not found in constant_pool" << endl;
+		return -1;
+	}
+	int type_index = lookupUTF8FromConstantPool(type);
+	if (type_index == -1)
+	{
+		cerr << type << " not found in constant pool" << endl;
+		return -1;
+	}
+	int ret = lookupNameTypeFromConstantPool(name_index, type_index);
+	return ret;
 }
 
 int Assembler::lookupUTF8FromConstantPool(std::string target)
@@ -314,6 +332,31 @@ int Assembler::lookupClassFromConstantPool(std::string target)
 	return -1;
 }
 
+/*Search Methodref index in constant pool
+  return its index if found. Otherwise, return -1;
+ */
+int Assembler::lookupMethodRef(int class_index, int nameType_index) 
+{
+	for (int i = 0; i < (int)constant_pool.size(); i++)
+	{
+		cp_info* info = constant_pool[i];
+		if (info->tag != 0x0a) continue;
+		Methodref_info* refinfo = dynamic_cast<Methodref_info*>(info);
+		if (refinfo->class_index == class_index &&
+			refinfo->name_and_type_index == nameType_index) {
+			return i;
+		}
+	}
+	return -1;
+}
+
+int Assembler::lookupMethodRef(std::string classname, std::string name, std::string type)
+{
+	int class_index = lookupClassFromConstantPool(classname);
+	int nametype_index = lookupNameTypeFromConstantPool(name, type);
+	return lookupMethodRef(class_index, nametype_index);
+}
+
 int Assembler::lookupConstantTable(unsigned __int8 tag, std::string target)
 {
 	int index = -1;
@@ -328,6 +371,7 @@ int Assembler::lookupConstantTable(unsigned __int8 tag, std::string target)
 	}
 	return index;
 }
+
 int Assembler::lookupField(string field_name)
 {
 	for (auto it = field_info_v.cbegin(); it != field_info_v.cend(); it++) {
@@ -496,6 +540,31 @@ void CodeGenVisitor::visit(shared_ptr<LiteralExpression>(node))
 		}
 		updateStack(1);
 	}
+	else if (node->token.type == TK_OBJ_ID) {
+		//search local variable. If not found search field
+		int local_variable = findLocalVariable(node->token.lexem) + 1;
+		if (local_variable != -1) {
+			auto symbolmap = assembler.analyzer.table->classMap;
+			BlockSymbolTable* symboltable = symbolmap[assembler.current_ast->classname.lexem];
+			Symbol* symbol = symboltable->lookupSymbolByName(node->token.lexem);
+			if (!symbol) {
+				cerr << node->token.lexem << " is not found in Symboltable while generating bytecode for this expression";
+				return;
+			}
+			string returntype = symbol->type;
+			Instruction* load = createLoadInstruction(returntype, local_variable);
+			appendInstruction(load);
+			updateStack(1);
+		}
+		else {
+			int field_index = assembler.lookupField(node->token.lexem);
+			Instruction* aload0 = new Instruction(instructions.instructions["aload_0"], 1);
+			appendInstruction(aload0);
+			Instruction* getfield = new Instruction(instructions.instructions["getfield"], field_index);
+			appendInstruction(getfield);
+			updateStack(1);
+		}
+	}
 	else if (node->token.lexem == "true") {
 		Instruction* instruction = new Instruction();
 		instruction->opcode = instructions.instructions["iconst_1"];
@@ -519,7 +588,7 @@ void CodeGenVisitor::visit(shared_ptr<BinaryExpression> node)
 	Token_Type optype = node->op.type;
 
 	if (optype == TK_ASSIGN) {  //assignment affecte local variable.
-		int startindex = codes.size() - 1;
+		int startindex = (int)codes.size() - 1;
 		visit(right);
 		int localindex = -1;
 		if (left->node_type == LITERAL_EXP) {
@@ -531,34 +600,29 @@ void CodeGenVisitor::visit(shared_ptr<BinaryExpression> node)
 						break;
 					}
 				}
-				if (localindex == -1) {
+				if (localindex == -1) { 
 					int field_index = assembler.lookupField(leftexp->token.lexem);
 					if (field_index == -1) {
 						//error undefined variable.
+						cerr << "variable not founded" << endl;
 						return;
 					}
 					Instruction* load = new Instruction(instructions.instructions["aload_0"], 1);
-					for (int i = startindex; i < codes.size(); i++) {
-						//Instruction* tmp = codes[i];
-						codes[i+1] = codes[i];
-					}
-				//	appendInstruction(load);
+					shuffleRight(startindex, codes); //make room for aload_0
 					codes[startindex] = load;
 					updateStack(1);
-					Instruction* field = new Instruction(instructions.instructions["putField"], (uint32_t)field_index, 3);
+					Instruction* field = new Instruction(instructions.instructions["putfield"], (uint32_t)field_index, 3);
 					appendInstruction(field);
 					updateStack(-1);
 					return;
 				}
-				//localindex++;
 			}
 		}
 		else if (left->node_type == VAR_DECL_EXP) {
 			shared_ptr<VariableDeclareExpression> declare = dynamic_pointer_cast<VariableDeclareExpression>(left);
 			local_variable.push_back(declare->id.lexem);
-			localindex = (int)local_variable.size();
+			localindex = (int)local_variable.size() + 1;
 		}
-		//istore_localindex;
 		Instruction* store = new Instruction();
 		if (localindex < 4) {
 			string op = "istore_" + localindex;
@@ -649,7 +713,7 @@ void CodeGenVisitor::visit(shared_ptr<MethodInvocationExpression> node)
 	{
 		visit(*it);
 	}
-	int prevstack = 1 + arguments.size();
+	int prevstack = 1 + (int)arguments.size();
 	if (returntype != 'V') {
 		prevstack--;
 	}
@@ -714,7 +778,7 @@ void CodeGenVisitor::visit(std::shared_ptr<IfStatement> node)
 	shared_ptr<Expression> condition = node->condition;
 	Instruction* cmp = visitConditionExp(condition);
 	appendInstruction(cmp);
-	int ifindex = codes.size() - 1;
+	int ifindex = (int)codes.size() - 1;
 	visit(statement);
 	Instruction* ifinstruction = codes[ifindex];
 	ifinstruction->operand = byte_length - 1;
@@ -752,7 +816,7 @@ void CodeGenVisitor::visit(shared_ptr<WhileStatement> node)
 					breakins->opcode = instructions.instructions["goto"];
 					breakins->length = 3;
 					appendInstruction(breakins);
-					breakIndex = codes.size() - 1;
+					breakIndex = (int)codes.size() - 1;
 					continue;
 				}
 				else if (literalexp->token.lexem == "continue") {
@@ -803,8 +867,12 @@ void CodeGenVisitor::visit(std::shared_ptr<ExpStatement> node)
 
 void CodeGenVisitor::visit(std::shared_ptr<MethodDefinition> node)
 {
-	vector<shared_ptr<Formal>>arguments = node->arguments;
 	local_variable.clear();
+	if (node->name.lexem == assembler.current_ast->classname.lexem) {
+		genClassConstructor(node);
+		return;
+	}
+	vector<shared_ptr<Formal>>arguments = node->arguments;
 	for (shared_ptr<Formal> argument : arguments) {
 		local_variable.push_back(argument->id.lexem);
 		max_variable++;
@@ -813,6 +881,49 @@ void CodeGenVisitor::visit(std::shared_ptr<MethodDefinition> node)
 	current_returntype = node->returntype.lexem;
 	visit(statement);
 }
+
+//Generate bytecode for class constructor
+void CodeGenVisitor::genClassConstructor(shared_ptr<MethodDefinition> node)
+{
+	shared_ptr<ClassNode> root = assembler.current_ast;
+	vector<shared_ptr<Formal>> arguments = node->arguments;
+	for (auto argument : arguments) 
+	{
+		local_variable.push_back(argument->id.lexem);
+		max_variable++;
+	}
+	if (assembler.current_ast->parent) {
+		string parentname = root->parentname;
+		int method_index = assembler.lookupMethodRef(parentname, "<init>", "()V");
+		Instruction* iload = new Instruction(instructions.instructions["iload_0"], 1);
+		appendInstruction(iload);
+		Instruction* ins = new Instruction(instructions.instructions["invokespecial"], method_index, 3);
+		appendInstruction(ins);
+	}
+	else {
+		// init java.lang.Object
+		int object_init = assembler.lookupMethodRef("java/lang/Object", "<init>", "()V");
+		Instruction* aload0 = new Instruction(instructions.instructions["aload_0"], 1);
+		appendInstruction(aload0);
+		Instruction* invoke = new Instruction(instructions.instructions["invokespecial"], object_init, 3);
+		appendInstruction(invoke);
+	}
+	//initialize the class field.
+	auto fields = root->fields;
+	int startindex = (int)codes.size();
+	Instruction* aload_0 = new Instruction(instructions.instructions["aload_0"], 1);
+	for (auto it = fields.cbegin(); it != fields.cend(); it++)
+	{
+		shared_ptr<Formal> formal = *it;
+		if (!formal->val) continue;
+		visit(formal->val);
+		shuffleRight(startindex, codes);
+		codes[startindex] = aload_0;
+		int field_index = assembler.lookupField(formal->id.lexem);
+		Instruction* putfield = new Instruction(instructions.instructions["putfield"], field_index);
+		appendInstruction(putfield);
+	}
+} 
 
 void CodeGenVisitor::appendInstruction(Instruction* instruction) 
 {
@@ -836,4 +947,53 @@ void CodeGenVisitor::freeCodes()
 		*it = NULL;
 	}
 	codes.clear();
+}
+
+/*
+ *	vector中从start位置开始，所有元素向右移一位。
+ *  Note: start位置的元素保持不变
+ */
+void CodeGenVisitor::shuffleRight(int start, std::vector<Instruction*>& v)
+{
+	v.push_back(v.back());
+	int len = (int)v.size() - 2;
+	for (int i = len; i > start; i--)
+	{
+		v[i] = v[i - 1];
+	}
+}
+
+int CodeGenVisitor::findLocalVariable(string& variable)
+{
+	for (int i = 0; i < local_variable.size(); i++) 
+	{
+		if (local_variable[i] == variable) {
+			return i;
+		}
+	}
+	return -1;
+}
+
+//create a load instruction
+CodeGenVisitor::Instruction* CodeGenVisitor::createLoadInstruction(std::string type, int index)
+{
+	if (index < 1) return nullptr;
+	if (type == "" || type.empty()) return nullptr;
+
+	Instruction* ins = new Instruction();
+	string opname = "aload";
+	if (type == "Int") {
+		opname = "iload";
+		if (index < 4 && index > 0) {
+			opname += "_";
+			opname += index;
+		}
+		ins->opcode = instructions.instructions[opname];
+		ins->length = 1;
+		return ins;
+	}
+	ins->opcode = instructions.instructions[opname];
+	ins->operand = index;
+	ins->length = 3;
+	return ins;
 }
