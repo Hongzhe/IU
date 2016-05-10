@@ -1,9 +1,21 @@
 #pragma once
 
+enum CONSTANT_TYPE
+{
+	CONSTANT_CLASS = 0x07,
+	CONSTANT_Fieldref = 0x09,
+	CONSTANT_Methodref = 0x0a,
+	CONSTANT_String = 0x08,
+	CONSTANT_Integer = 0x03,
+	CONSTANT_NameAndType = 0x0c,
+	CONSTANT_Utf8 = 0x01
+};
+
 class cp_info
 {
 public:
 	cp_info(unsigned __int8 t) : tag(t) {}
+	cp_info() {}
 	unsigned __int8 tag;
 	virtual ~cp_info(){}
 };
@@ -11,7 +23,9 @@ public:
 class CONSTANT_Class_info: public cp_info
 {
 public:
-	CONSTANT_Class_info(unsigned __int8 t) : cp_info(t) {}
+	CONSTANT_Class_info() {
+		cp_info::tag = CONSTANT_CLASS;
+	}
 	unsigned __int16 name_index;
 };
 
@@ -19,7 +33,9 @@ public:
 class Fieldref_info : public cp_info
 {
 public:
-	Fieldref_info(unsigned __int8 t): cp_info(t) {}
+	Fieldref_info() {
+		cp_info::tag = CONSTANT_Fieldref;
+	}
 	unsigned __int16 class_index;
 	unsigned __int16 name_and_type_index;
 };
@@ -27,7 +43,9 @@ public:
 class Methodref_info : public cp_info
 {
 public:
-	Methodref_info(unsigned __int8 t) : cp_info(t) {}
+	Methodref_info() {
+		cp_info::tag = CONSTANT_Methodref;
+	}
 	unsigned __int16 class_index;
 	unsigned __int16 name_and_type_index;
 };
@@ -35,20 +53,27 @@ public:
 class CONSTANT_String_info : public cp_info
 {
 public:
-	CONSTANT_String_info(unsigned __int8 t) : cp_info(t) {}
+	CONSTANT_String_info() {
+		cp_info::tag = CONSTANT_String;
+	}
 	unsigned __int16 string_index;
 };
 
 class CONSTANT_Integer_info : public cp_info
 {
 public:
+	CONSTANT_Integer_info() {
+		cp_info::tag = CONSTANT_Integer;
+	}
 	unsigned __int32 bytes;
 };
 
 class CONSTANT_NameAndType_info: public cp_info
 {
 public:
-	CONSTANT_NameAndType_info(unsigned __int8 t) : cp_info(t) {}
+	CONSTANT_NameAndType_info() {
+		cp_info::tag = CONSTANT_NameAndType;
+	}
 	unsigned __int16 name_index;
 	unsigned __int16 descriptor_index;
 };
@@ -56,7 +81,9 @@ public:
 class CONSTANT_Utf8_info : public cp_info
 {
 public:
-	CONSTANT_Utf8_info(unsigned __int8 t) : cp_info(t) {}
+	CONSTANT_Utf8_info() {
+		cp_info::tag = CONSTANT_Utf8;
+	}
 	unsigned __int16 length;
 	unsigned char* byte;
 };

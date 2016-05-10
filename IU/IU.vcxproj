@@ -149,6 +149,7 @@
     <ClInclude Include="ast.h" />
     <ClInclude Include="ClassFormat.h" />
     <ClInclude Include="Assembler.h" />
+    <ClInclude Include="CodeGenVisitor.h" />
     <ClInclude Include="Error.h" />
     <ClInclude Include="Instruction.h" />
     <ClInclude Include="ParserException.h" />
