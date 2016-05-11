@@ -14,6 +14,7 @@ void Assembler::prepare()
 
 void Assembler::startGen(string dir)
 {
+	codegenVisitor.assembler = this;
 	map<string, BlockSymbolTable*> classmap = analyzer.table->classMap;
 	for (auto it = classmap.cbegin(); it != classmap.cend(); it++)
 	{
@@ -23,8 +24,10 @@ void Assembler::startGen(string dir)
 		out.open(path, ios::binary);
 		genHead();
 		genConstantPool(it->second);
+		writeMethodInfo();
 		out.close();
 	}
+	cout << "class file generated" << endl;
 }
 
 void Assembler::genHead()
@@ -223,14 +226,15 @@ void Assembler::genConstantPool(BlockSymbolTable* symboltable)
 	for (int i = 0; i < (int)methods.size(); i++) {
 		extractConstantFromMethod(methods[i]);
 	}
+	genUTF8Constant("code", constant_pool);
 	writeConstantPool(constant_pool);
 	writeInt16(0x0001); //access_flag
 	writeInt16(cur_class_index); //this class
 	writeInt16(obj_index); //parent class
 	writeInt16(0x0000);//interface count
 	writeFieldOrMethods(field_info_v);
-	writeFieldOrMethods(method_info_v);
-	writeInt16(0x0000);
+//	writeFieldOrMethods(method_info_v);
+	//writeInt16(0x0000);
 }
 
 int Assembler::genClassInfo(std::string classname, vector<cp_info*>& pool)
@@ -431,19 +435,19 @@ void Assembler::writeConstantPool(std::vector<cp_info*>& pool)
 		out.write((char*)& tag, 1);
 		switch (tag)
 		{
-		case 0x07: 
+		case CONSTANT_CLASS: 
 		{
 			CONSTANT_Class_info* class_info = dynamic_cast<CONSTANT_Class_info*>(cur);
 			writeInt16(class_info->name_index);
 		}
 			break;
-		case 0x08:
+		case CONSTANT_String:
 		{
 			CONSTANT_String_info* str_info = dynamic_cast<CONSTANT_String_info*>(cur);
 			writeInt16(str_info->string_index);
 		}
 			break;
-		case 0x01:
+		case CONSTANT_Utf8:
 		{
 			CONSTANT_Utf8_info* utf8_info = dynamic_cast<CONSTANT_Utf8_info*>(cur);
 			writeInt16(utf8_info->length);
@@ -452,21 +456,21 @@ void Assembler::writeConstantPool(std::vector<cp_info*>& pool)
 			}
 		}
 			break;
-		case 0x0c:
+		case CONSTANT_NameAndType:
 		{
 			CONSTANT_NameAndType_info* info = dynamic_cast<CONSTANT_NameAndType_info*>(cur);
 			writeInt16(info->name_index);
 			writeInt16(info->descriptor_index);
 		}
 		break;
-		case 0x09:
+		case CONSTANT_Fieldref:
 		{
 			Fieldref_info* info = dynamic_cast<Fieldref_info*>(cur);
 			writeInt16(info->class_index);
 			writeInt16(info->name_and_type_index);
 		}
 		break;
-		case 0x0a:
+		case CONSTANT_Methodref:
 		{
 			Methodref_info* info = dynamic_cast<Methodref_info*>(cur);
 			writeInt16(info->class_index);
@@ -475,8 +479,7 @@ void Assembler::writeConstantPool(std::vector<cp_info*>& pool)
 		break;
 		case 0x0b:
 		break;
-		case 0x03:
-		case 0x04:
+		case CONSTANT_Integer:
 		{
 			CONSTANT_Integer_info* info = dynamic_cast<CONSTANT_Integer_info*>(cur);
 			writeInt32(info->bytes);
@@ -493,6 +496,21 @@ void Assembler::writeConstantPool(std::vector<cp_info*>& pool)
 	}
 }
 
+//write method info
+void Assembler::writeMethodInfo()
+{
+	auto methods = current_ast->methods;
+	for (int i = 0; i < methods.size(); i++)
+	{
+		Code_attribute* codeattr = genCodeAttribute(methods[i]);
+		if (!codeattr) continue;
+		Field_Method_info* m = method_info_v[i];
+		m->attribute_count = 1;
+		m->attributes.push_back(codeattr);
+	}
+	writeFieldOrMethods(method_info_v);
+}
+
 void Assembler::writeFieldOrMethods(std::vector<Field_Method_info*>& collections)
 {
 	writeInt16((unsigned short)collections.size());
@@ -503,12 +521,46 @@ void Assembler::writeFieldOrMethods(std::vector<Field_Method_info*>& collections
 		writeInt16(info->name_index);
 		writeInt16(info->descriptor_index);
 		writeInt16(info->attribute_count);
+		for (int i = 0; i < info->attribute_count; i++) 
+		{
+			auto attribute = info->attributes[i];
+			Code_attribute* code = dynamic_cast<Code_attribute*>(attribute);
+			writeInt16(code->max_stack);
+			writeInt16(code->max_locals);
+			writeInt32(code->code_length);
+			for (auto it = code->code.cbegin(); it != code->code.cend(); it++) 
+			{
+				Instruction* cur = *it;
+				writeInt8(cur->opcode);
+				if (cur->length == 2) {
+					writeInt16(cur->operand);
+				}
+				else if (cur->length == 1) {
+					writeInt8(cur->operand);
+				}
+			}
+		}
 	}
 }
 
-void Assembler::genCodeAttribute(shared_ptr<MethodDefinition> method)
+Code_attribute* Assembler::genCodeAttribute(shared_ptr<MethodDefinition> method)
 {
-	
+	codegenVisitor.reset();
+	codegenVisitor.visit(method);
+	int codeindex = lookupUTF8FromConstantPool("code");
+	if (codeindex == -1) {
+		cerr << "Attribute name code is not found" << endl;
+		return nullptr;
+	}
+	Code_attribute* codeAttr = new Code_attribute(codeindex);
+	codeAttr->max_stack = codegenVisitor.max_stack;
+	codeAttr->max_locals = codegenVisitor.max_variable;
+	codeAttr->code_length = codegenVisitor.byte_length;
+	codeAttr->code = codegenVisitor.codes;
+	codeAttr->attribute_count = 0;
+	codeAttr->attribute_length = (int)sizeof(uint16_t) + (int)sizeof(uint16_t) + (int)sizeof(uint32_t) + codeAttr->code_length;
+	codeAttr->attributes = nullptr;
+	return codeAttr;
 }
 
 //Below are visitors for Expression
@@ -538,6 +590,11 @@ void CodeGenVisitor::visit(shared_ptr<Expression> node)
 void CodeGenVisitor::visit(std::shared_ptr<VariableDeclareExpression> node)
 {
 	//no bytecode are generated for variable declaration.
+}
+
+void CodeGenVisitor::visit(class std::shared_ptr<class PranExpression> node)
+{
+	visit(node->exp);
 }
 
 void CodeGenVisitor::visit(shared_ptr<LiteralExpression>(node))
@@ -775,7 +832,7 @@ void CodeGenVisitor::visit(shared_ptr<Statement> node)
 
 
 
-CodeGenVisitor::Instruction* CodeGenVisitor::visitConditionExp(std::shared_ptr<Expression> condition)
+Instruction* CodeGenVisitor::visitConditionExp(std::shared_ptr<Expression> condition)
 {
 	Instruction* cmp = new Instruction();
 	uint8_t code = 0x00;
@@ -1009,7 +1066,7 @@ int CodeGenVisitor::findLocalVariable(string& variable)
 }
 
 //create a load instruction
-CodeGenVisitor::Instruction* CodeGenVisitor::createLoadInstruction(std::string type, int index)
+Instruction* CodeGenVisitor::createLoadInstruction(std::string type, int index)
 {
 	if (index < 1) return nullptr;
 	if (type == "" || type.empty()) return nullptr;

@@ -56,11 +56,19 @@ private:
 		out.write((char*)&v, 2);
 	}
 	
+	inline void writeInt8(uint8_t val) {
+		out.write((char*)&val, 1);
+	}
+
 	void genHead();
 	
+	void writeMethodInfo();
+
 	void writeConstantPool(std::vector<cp_info*>&);
 	
 	void writeFieldOrMethods(std::vector<Field_Method_info*>&);
+
+	void writeCodeAttribute(Code_attribute* codeAttr);
 
 	void extractConstantFromExpStatement(std::shared_ptr<ExpStatement>, std::vector<cp_info*>&);
 
@@ -120,7 +128,7 @@ private:
 
 	std::string Assembler::genFieldDescriptor(std::string& type);
 
-	void Assembler::genCodeAttribute(std::shared_ptr<MethodDefinition> method);
+	Code_attribute* Assembler::genCodeAttribute(std::shared_ptr<MethodDefinition> method);
 public:
 	
 	friend class CodeGenVisitor;
@@ -129,7 +137,6 @@ public:
 	
 	Analyzer analyzer;
 	
-
 	void prepare();
 	
 	void startGen(std::string dir);

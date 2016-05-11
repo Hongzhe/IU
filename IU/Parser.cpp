@@ -144,8 +144,10 @@ shared_ptr<MethodDefinition> Parser::parse_method()
 	node->node_type = METHOD_DEFINE_STMT;
 	Token token = lexer.getToken();
 	if (token.type != TK_TYPE_ID) {
-		Error::syntax_error("TYPE_ID", token, lexer);
-		return nullptr;
+		if (token.lexem != "void") {
+			Error::syntax_error("TYPE_ID", token, lexer);
+			return nullptr;
+		}
 	}
 	node->returntype = token;
 	token = lexer.getToken();

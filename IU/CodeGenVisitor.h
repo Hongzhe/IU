@@ -4,6 +4,7 @@
 #include <unordered_map>
 #include "ast.h"
 #include "Assembler.h"
+#include "ClassFormat.h"
 
 class Instructions
 {
@@ -92,23 +93,12 @@ public:
 
 	}
 };
+
 class Assembler;
 
 class CodeGenVisitor : IVisitor
 {
 public:
-	class Instruction
-	{
-	public:
-		Instruction() {}
-		Instruction(char op, int len) : opcode(op), length(len) {}
-		Instruction(char op, uint32_t operand, int len) : opcode(op), length(len), operand(operand) {}
-
-		char opcode; //one byte long opcode
-		uint32_t operand;
-		int length;
-	};
-
 	Assembler* assembler;
 
 	int max_stack;
@@ -149,6 +139,7 @@ public:
 		max_variable = 0;
 		byte_length = 0;
 		local_variable.clear();
+		freeCodes();
 	}
 
 	void appendInstruction(Instruction* instruction);

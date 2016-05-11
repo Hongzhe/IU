@@ -66,11 +66,13 @@ void Analyzer::analyze_field(std::shared_ptr<Formal> node)
 }
 
 void Analyzer::analyze_method(std::shared_ptr<MethodDefinition> node)
-{
-	if (!table->isTypeDefined(node->returntype.lexem)) {
-		Error::semantical_undefined_type(node->returntype.lexem, node->lineno);
-		return;
+{	
+	if (node->returntype.type == TK_TYPE_ID &&
+		!table->isTypeDefined(node->returntype.lexem)) {
+			Error::semantical_undefined_type(node->returntype.lexem, node->lineno);
+			return;
 	}
+	
 	shared_ptr<BlockStatement> blockstmt = node->block;
 	vector<shared_ptr<Statement>> stmts = blockstmt->stmts;
 	Symbol* symbol = current_table->table[node->name.lexem];

@@ -1,4 +1,5 @@
 #pragma once
+#include <vector>
 
 enum CONSTANT_TYPE
 {
@@ -9,6 +10,18 @@ enum CONSTANT_TYPE
 	CONSTANT_Integer = 0x03,
 	CONSTANT_NameAndType = 0x0c,
 	CONSTANT_Utf8 = 0x01
+};
+
+class Instruction
+{
+public:
+	Instruction() {}
+	Instruction(char op, int len) : opcode(op), length(len) {}
+	Instruction(char op, uint32_t operand, int len) : opcode(op), length(len), operand(operand) {}
+
+	char opcode; //one byte long opcode
+	uint32_t operand;
+	int length;
 };
 
 class cp_info
@@ -116,17 +129,18 @@ public:
 	Attribute_info(uint16_t name_index) : attribute_name_index(name_index) {}
 	uint16_t attribute_name_index;
 	uint32_t attribute_length;
-	virtual ~Attribute_info();
+	virtual ~Attribute_info() {};
 };
 
 class Code_attribute : public Attribute_info
 {
 public:
 	Code_attribute(uint16_t name_index) : Attribute_info(name_index) {}
+	~Code_attribute() {}
 	uint16_t max_stack;
 	uint16_t max_locals;
 	uint32_t code_length;
-	char* code;
+	std::vector<Instruction*> code;
 	uint16_t attribute_count;
 	Attribute_info* attributes;
 };
@@ -147,5 +161,5 @@ public:
 	uint16_t name_index;
 	uint16_t descriptor_index;
 	uint16_t attribute_count = 0;
-	Attribute_info* attribute;
+	std::vector<Attribute_info*> attributes;
 };
