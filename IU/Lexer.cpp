@@ -64,7 +64,7 @@ void Lexer::putback(char c)
 }
 void Lexer::unget(Token token)
 {
-	int len = token.lexem.length();
+	int len = (int)token.lexem.length();
 	for (int i = 0; i < len; i++) {
 		char c = token.lexem[len - i - 1];
 		fin.putback(c);
@@ -73,7 +73,7 @@ void Lexer::unget(Token token)
 
 void Lexer::unget()
 {
-	int len = cur_token.lexem.length();
+	int len = (int)cur_token.lexem.length();
 	for (int i = 0; i < len; i++) {
 		char c = cur_token.lexem[len-i-1];
 		fin.putback(c);

@@ -90,7 +90,7 @@ BlockSymbolTable* SymbolTable::addBlockScope(std::shared_ptr<BlockStatement> nod
 {
 	BlockSymbolTable* block = new BlockSymbolTable();
 	block->prev = scope;
-	block->index = scope->children.size();
+	block->index = (int)scope->children.size();
 	scope->children.push_back(block);
 
 	auto statements = node->stmts;

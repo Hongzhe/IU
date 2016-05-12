@@ -35,7 +35,8 @@ int main()
 	//BlockSymbolTable* herotable = analzyer.analyze(inherit_stmt);
 	//BlockSymbolTable::printBlockSymbolTable(herotable);
 	BlockSymbolTable* classtable = analzyer.analyze(stmt);
-	//BlockSymbolTable::printBlockSymbolTable(classtable);
+
+	BlockSymbolTable::printBlockSymbolTable(classtable);
 
 
 	//TreePrinter printer;

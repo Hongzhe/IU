@@ -237,7 +237,7 @@ bool Analyzer::validateMethodInvocation(shared_ptr<MethodInvocationExpression> n
 	}
 	vector<shared_ptr<Formal>> arg_define = m->arguments;
 	if (arguments.size() != arg_define.size()) {
-		Error::semantical_method_arguments_number(node->name.lexem, arg_define.size(), arguments.size(), node->lineno);
+		Error::semantical_method_arguments_number(node->name.lexem, (int)arg_define.size(), (int)arguments.size(), node->lineno);
 		return false;
 	}
 	bool argumentsok = true;

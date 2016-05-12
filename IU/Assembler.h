@@ -23,6 +23,10 @@ private:
 	int current_method_index;
 	
 	BlockSymbolTable* current_method_symbolTable;
+	
+	BlockSymbolTable* current_scope;
+
+	int current_scope_index;
 
 	std::map<std::string, std::string> field_descriptors;
 

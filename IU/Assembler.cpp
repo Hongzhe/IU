@@ -559,7 +559,7 @@ void Assembler::writeFieldOrMethods(std::vector<Field_Method_info*>& collections
 			writeInt16(code->attribute_name_index);
 			writeInt32(code->attribute_length);
 			writeInt16(code->max_stack);
-			writeInt16(code->max_locals);
+			writeInt16((uint16_t)codegenVisitor.local_variable.size() + 1);
 			writeInt32(code->code_length);
 			for (auto it = code->code.cbegin(); it != code->code.cend(); it++) 
 			{
@@ -578,6 +578,7 @@ void Assembler::writeFieldOrMethods(std::vector<Field_Method_info*>& collections
 Code_attribute* Assembler::genCodeAttribute(shared_ptr<MethodDefinition> method)
 {
 	codegenVisitor.reset();
+	current_scope_index = 0;
 	codegenVisitor.visit(method);
 	int codeindex = lookupUTF8FromConstantPool("Code");
 	if (codeindex == -1) {
@@ -667,12 +668,8 @@ void CodeGenVisitor::visit(shared_ptr<LiteralExpression>(node))
 	else if (node->token.type == TK_OBJ_ID) {
 		//search local variable. If not found search field
 		int local_variable = findLocalVariable(node->token.lexem) + 1;
-		if (local_variable != -1) {
-			auto symbolmap = assembler->analyzer.table->classMap;
-			BlockSymbolTable* symboltable = symbolmap[assembler->current_ast->classname.lexem];
-			vector<BlockSymbolTable*> children = symboltable->children;
-			//children[assembler->current_method_index];
-			Symbol* symbol = symboltable->lookupSymbolByName(node->token.lexem);
+		if (local_variable != -1) {   //lookup the symbol table
+			Symbol* symbol = assembler->current_scope->lookupSymbolByName(node->token.lexem);
 			if (!symbol) {
 				cerr << node->token.lexem << " is not found in Symboltable while generating bytecode for this expression";
 				return;
@@ -763,7 +760,7 @@ void CodeGenVisitor::visit(shared_ptr<BinaryExpression> node)
 			store->length = 3;
 		}
 		appendInstruction(store);
-		updateStack(1);
+		updateStack(-1);
 	}
 	else {
 		visit(left);
@@ -978,8 +975,19 @@ void CodeGenVisitor::visit(shared_ptr<BlockStatement> node)
 		updateStack(-1);
 		return;
 	}
-	for (auto it = stmts.cbegin(); it != stmts.cend(); it++) {
-		visit(*it);
+
+	auto method_scope = assembler->current_method_symbolTable;
+	for (int i = 0; i < stmts.size(); i++)
+	{
+		if (stmts[i]->node_type == IF_STMT ||
+			stmts[i]->node_type == WHILE_STMT ||
+			stmts[i]->node_type == BLOCK_STMT) {
+			assembler->current_scope = method_scope->children[assembler->current_scope_index++];
+		}
+		else {
+			assembler->current_scope = method_scope;
+		}
+		visit(stmts[i]);
 	}
 }
 
