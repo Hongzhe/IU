@@ -19,6 +19,10 @@ private:
 	std::ofstream out;
 
 	std::shared_ptr<ClassNode> current_ast;
+	
+	int current_method_index;
+	
+	BlockSymbolTable* current_method_symbolTable;
 
 	std::map<std::string, std::string> field_descriptors;
 
@@ -129,6 +133,8 @@ private:
 	std::string Assembler::genFieldDescriptor(std::string& type);
 
 	Code_attribute* Assembler::genCodeAttribute(std::shared_ptr<MethodDefinition> method);
+
+	void freeConstantPool();
 public:
 	
 	friend class CodeGenVisitor;

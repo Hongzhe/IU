@@ -27,7 +27,7 @@ int main()
 	Parser parser;
 	//parser.prepare("c:/code/IU/test/class_inherit_test.IU");
 //	shared_ptr<ClassNode> inherit_stmt = parser.parse();
-	parser.prepare("c:/code/IU/test/Testclass.IU");
+	parser.prepare("d:/code/IU/test/Simple.IU");
 	shared_ptr<ClassNode> stmt = parser.parse();
 
 
@@ -42,7 +42,7 @@ int main()
 	//printer.visit(stmt);
 	Assembler assembler;
 	assembler.analyzer = analzyer;
-	assembler.startGen("c://code//IU//test//");
+	assembler.startGen("d://code//IU//test//");
 	
     return 0;
 

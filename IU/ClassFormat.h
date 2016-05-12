@@ -9,7 +9,8 @@ enum CONSTANT_TYPE
 	CONSTANT_String = 0x08,
 	CONSTANT_Integer = 0x03,
 	CONSTANT_NameAndType = 0x0c,
-	CONSTANT_Utf8 = 0x01
+	CONSTANT_Utf8 = 0x01,
+	CONSTANT_HOLDER = 0xcc,
 };
 
 class Instruction
@@ -140,6 +141,7 @@ public:
 	uint16_t max_stack;
 	uint16_t max_locals;
 	uint32_t code_length;
+	uint16_t exception_table_length;
 	std::vector<Instruction*> code;
 	uint16_t attribute_count;
 	Attribute_info* attributes;

@@ -3,6 +3,8 @@
 #include "ClassFormat.h"
 
 #include <vector>
+#include <strstream>
+#include <sstream>
 using namespace std;
 
 void Assembler::prepare()
@@ -22,12 +24,26 @@ void Assembler::startGen(string dir)
 		current_ast = analyzer.classNodes[it->first];
 		if (!current_ast) continue;
 		out.open(path, ios::binary);
+		freeConstantPool();
+		constant_pool.push_back(new cp_info(CONSTANT_HOLDER));
 		genHead();
 		genConstantPool(it->second);
 		writeMethodInfo();
+		writeInt16(0x0000); 
 		out.close();
 	}
 	cout << "class file generated" << endl;
+}
+
+void Assembler::freeConstantPool()
+{
+	for (int i = 0; i < constant_pool.size(); i++) {
+		if (constant_pool[i]) {
+			delete constant_pool[i];
+			constant_pool[i] = nullptr;
+		}
+	}
+	constant_pool.clear();
 }
 
 void Assembler::genHead()
@@ -178,6 +194,9 @@ std::string Assembler::genMethodDescriptor(std::vector<shared_ptr<Formal>>& form
 		if (cur->type.lexem == "Int") {
 			descriptor += "I";
 		}
+		else if (cur->type.lexem == "Bool") {
+			descriptor += "Z";
+		}
 		else {
 			descriptor += "L";
 			descriptor += cur->id.lexem;
@@ -188,10 +207,15 @@ std::string Assembler::genMethodDescriptor(std::vector<shared_ptr<Formal>>& form
 	if (type == "Int") {
 		descriptor += "I";
 	}
+	else if (type == "void") {
+		descriptor += "V";
+	}
+	else if (type == "Bool") {
+		descriptor += "Z";
+	}
 	else {
 		descriptor += "L";
 		descriptor += type;
-
 	}
 	return descriptor;
 }
@@ -226,7 +250,7 @@ void Assembler::genConstantPool(BlockSymbolTable* symboltable)
 	for (int i = 0; i < (int)methods.size(); i++) {
 		extractConstantFromMethod(methods[i]);
 	}
-	genUTF8Constant("code", constant_pool);
+	genUTF8Constant("Code", constant_pool);
 	writeConstantPool(constant_pool);
 	writeInt16(0x0001); //access_flag
 	writeInt16(cur_class_index); //this class
@@ -239,7 +263,7 @@ void Assembler::genConstantPool(BlockSymbolTable* symboltable)
 
 int Assembler::genClassInfo(std::string classname, vector<cp_info*>& pool)
 {
-	int found = lookupConstantTable(0x07, classname);
+	int found = lookupConstantTable(CONSTANT_CLASS, classname);
 	if (found != -1) return found;
 	CONSTANT_Class_info* info = new CONSTANT_Class_info();
 	int name_index = genUTF8Constant(classname, pool);
@@ -290,7 +314,7 @@ int Assembler::genMethodRef(string classname, string id, string type, vector<cp_
 	int idindex = genUTF8Constant(id, pool);
 	int typeindex = genUTF8Constant(type, pool);
 	int nameAndType = genNameAndType(idindex, typeindex, pool);
-	return genMethodRef(idindex, nameAndType);
+	return genMethodRef(classindex, nameAndType);
 }
 
 int Assembler::genMethodRef(int classindex, int nameAndType)
@@ -342,7 +366,7 @@ int Assembler::lookupUTF8FromConstantPool(std::string target)
 	{
 		bool found = true;
 		cp_info* info = constant_pool[i];
-		if (info->tag != 0x01) continue;
+		if (info->tag != CONSTANT_Utf8) continue;
 		CONSTANT_Utf8_info* utf8 = dynamic_cast<CONSTANT_Utf8_info*>(info);
 		found = isEqual(utf8->length, utf8->byte, target);
 		if (found) return i;
@@ -429,7 +453,9 @@ bool Assembler::isEqual(int size, unsigned char* bytes, string s)
 void Assembler::writeConstantPool(std::vector<cp_info*>& pool)
 {
 	writeInt16((unsigned short)pool.size());
-	for (auto it = pool.cbegin(); it != pool.cend(); it++) {
+	auto it = pool.cbegin();
+	it++;
+	for (; it != pool.cend(); it++) {
 		cp_info* cur = *it;
 		unsigned char tag = cur->tag;
 		out.write((char*)& tag, 1);
@@ -500,8 +526,13 @@ void Assembler::writeConstantPool(std::vector<cp_info*>& pool)
 void Assembler::writeMethodInfo()
 {
 	auto methods = current_ast->methods;
+	codegenVisitor.instructions.init();
 	for (int i = 0; i < methods.size(); i++)
 	{
+		current_method_index = i;
+		auto symbolmap = analyzer.table->classMap;
+		BlockSymbolTable* classtable = symbolmap[current_ast->classname.lexem];
+		current_method_symbolTable = classtable->children[i];
 		Code_attribute* codeattr = genCodeAttribute(methods[i]);
 		if (!codeattr) continue;
 		Field_Method_info* m = method_info_v[i];
@@ -525,6 +556,8 @@ void Assembler::writeFieldOrMethods(std::vector<Field_Method_info*>& collections
 		{
 			auto attribute = info->attributes[i];
 			Code_attribute* code = dynamic_cast<Code_attribute*>(attribute);
+			writeInt16(code->attribute_name_index);
+			writeInt32(code->attribute_length);
 			writeInt16(code->max_stack);
 			writeInt16(code->max_locals);
 			writeInt32(code->code_length);
@@ -532,13 +565,12 @@ void Assembler::writeFieldOrMethods(std::vector<Field_Method_info*>& collections
 			{
 				Instruction* cur = *it;
 				writeInt8(cur->opcode);
-				if (cur->length == 2) {
+				if (cur->length > 1) {
 					writeInt16(cur->operand);
 				}
-				else if (cur->length == 1) {
-					writeInt8(cur->operand);
-				}
 			}
+			writeInt16(code->exception_table_length);
+			writeInt16(code->attribute_count);
 		}
 	}
 }
@@ -547,9 +579,9 @@ Code_attribute* Assembler::genCodeAttribute(shared_ptr<MethodDefinition> method)
 {
 	codegenVisitor.reset();
 	codegenVisitor.visit(method);
-	int codeindex = lookupUTF8FromConstantPool("code");
+	int codeindex = lookupUTF8FromConstantPool("Code");
 	if (codeindex == -1) {
-		cerr << "Attribute name code is not found" << endl;
+		cerr << "Attribute name Code is not found" << endl;
 		return nullptr;
 	}
 	Code_attribute* codeAttr = new Code_attribute(codeindex);
@@ -558,7 +590,9 @@ Code_attribute* Assembler::genCodeAttribute(shared_ptr<MethodDefinition> method)
 	codeAttr->code_length = codegenVisitor.byte_length;
 	codeAttr->code = codegenVisitor.codes;
 	codeAttr->attribute_count = 0;
-	codeAttr->attribute_length = (int)sizeof(uint16_t) + (int)sizeof(uint16_t) + (int)sizeof(uint32_t) + codeAttr->code_length;
+	codeAttr->exception_table_length = 0;
+	codeAttr->attribute_length = (int)sizeof(uint16_t) + (int)sizeof(uint16_t) + (int)sizeof(uint32_t) + codeAttr->code_length
+		+ sizeof(uint16_t) + sizeof(uint16_t);
 	codeAttr->attributes = nullptr;
 	return codeAttr;
 }
@@ -617,7 +651,8 @@ void CodeGenVisitor::visit(shared_ptr<LiteralExpression>(node))
 		Instruction* instruction = new Instruction();
 		if (val >= 0 && val < 6) {
 			//iconst_n iconst_0 + val
-			instruction->opcode = instructions.instructions["iconst_" + val];
+			string key = "iconst_" + intstr;
+			instruction->opcode = instructions.instructions[key];
 			instruction->length = 1;
 			appendInstruction(instruction);
 		}
@@ -635,6 +670,8 @@ void CodeGenVisitor::visit(shared_ptr<LiteralExpression>(node))
 		if (local_variable != -1) {
 			auto symbolmap = assembler->analyzer.table->classMap;
 			BlockSymbolTable* symboltable = symbolmap[assembler->current_ast->classname.lexem];
+			vector<BlockSymbolTable*> children = symboltable->children;
+			//children[assembler->current_method_index];
 			Symbol* symbol = symboltable->lookupSymbolByName(node->token.lexem);
 			if (!symbol) {
 				cerr << node->token.lexem << " is not found in Symboltable while generating bytecode for this expression";
@@ -714,7 +751,9 @@ void CodeGenVisitor::visit(shared_ptr<BinaryExpression> node)
 		}
 		Instruction* store = new Instruction();
 		if (localindex < 4) {
-			string op = "istore_" + localindex;
+			stringstream ss;
+			ss << localindex;
+			string op = "istore_" + ss.str();
 			store->opcode = instructions.instructions[op];
 			store->length = 1;
 		}
@@ -824,13 +863,15 @@ void CodeGenVisitor::visit(shared_ptr<Statement> node)
 	case WHILE_STMT:
 		visit(dynamic_pointer_cast<WhileStatement>(node));
 		break;
+	case RETURN_STMT:
+	case EXP_STMT:
+		visit(dynamic_pointer_cast<ExpStatement>(node));
+		break;
 	case BLOCK_STMT:
 		visit(dynamic_pointer_cast<BlockStatement>(node));
 		break;
 	}
 }
-
-
 
 Instruction* CodeGenVisitor::visitConditionExp(std::shared_ptr<Expression> condition)
 {
@@ -879,7 +920,7 @@ void CodeGenVisitor::visit(std::shared_ptr<IfStatement> node)
 		skipelse->opcode = instructions.instructions["goto"];
 		skipelse->length = 3;
 		appendInstruction(skipelse);
-		int gotoIndex = codes.size() - 1;
+		int gotoIndex = (int)codes.size() - 1;
 		visit(node->elsepart);
 		codes[gotoIndex]->operand = byte_length;
 	}
@@ -931,6 +972,12 @@ void CodeGenVisitor::visit(shared_ptr<WhileStatement> node)
 void CodeGenVisitor::visit(shared_ptr<BlockStatement> node)
 {
 	vector<shared_ptr<Statement>> stmts = node->stmts;
+	if (stmts.empty()) {
+		Instruction* ret = new Instruction(instructions.instructions["return"], 1);
+		appendInstruction(ret);
+		updateStack(-1);
+		return;
+	}
 	for (auto it = stmts.cbegin(); it != stmts.cend(); it++) {
 		visit(*it);
 	}
@@ -952,8 +999,10 @@ void CodeGenVisitor::visit(std::shared_ptr<ExpStatement> node)
 			ins = new Instruction(instructions.instructions["areturn"], 1);
 		}
 		appendInstruction(ins);
+		//updateStack(-1);
 		return;
 	}
+	visit(node->expression);
 }
 
 void CodeGenVisitor::visit(std::shared_ptr<MethodDefinition> node)
@@ -1025,6 +1074,7 @@ void CodeGenVisitor::appendInstruction(Instruction* instruction)
 void CodeGenVisitor::updateStack(int val)
 {
 	current_stack += val;
+	if (current_stack < 0) current_stack = 0;
 	if (current_stack > max_stack) {
 		max_stack = current_stack;
 	}
@@ -1077,7 +1127,9 @@ Instruction* CodeGenVisitor::createLoadInstruction(std::string type, int index)
 		opname = "iload";
 		if (index < 4 && index > 0) {
 			opname += "_";
-			opname += index;
+			stringstream ss;
+			ss << index;
+			opname += ss.str();
 		}
 		ins->opcode = instructions.instructions[opname];
 		ins->length = 1;

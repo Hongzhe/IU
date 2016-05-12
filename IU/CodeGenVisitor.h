@@ -35,7 +35,8 @@ public:
 		instructions["istore"] = 0x36;
 		instructions["istore_0"] = 0x3b;
 		instructions["istore_1"] = 0x3c;
-		instructions["istore_3"] = 0x3d;
+		instructions["istore_2"] = 0x3d;
+		instructions["istore_3"] = 0x3e;
 		instructions["bipush"] = 0x10;
 		instructions["sipush"] = 0x11;
 
@@ -122,7 +123,7 @@ public:
 	CodeGenVisitor(Assembler* assembler, Instructions ins) : assembler(assembler), instructions(ins) {
 		max_stack = 0;
 		current_stack = 0;
-		max_variable = 0;
+		max_variable = 1;
 		byte_length = 0;
 		instructions.init();
 	}
@@ -136,7 +137,7 @@ public:
 	{
 		max_stack = 0;
 		current_stack = 0;
-		max_variable = 0;
+		max_variable = 1;
 		byte_length = 0;
 		local_variable.clear();
 		freeCodes();
