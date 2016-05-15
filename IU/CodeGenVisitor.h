@@ -76,6 +76,8 @@ public:
 		instructions["if_icmpgt"] = 0xa3;
 		instructions["if_icmple"] = 0xa4;
 
+		instructions["getstatic"] = 0xb2;
+		instructions["putstatic"] = 0xb3;
 		instructions["getfield"] = 0xb4;
 		instructions["putfield"] = 0xb5;
 		instructions["invokevirtual"] = 0xb6;

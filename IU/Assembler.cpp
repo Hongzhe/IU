@@ -63,10 +63,12 @@ void Assembler::extractConstantFromMainMethod(std::shared_ptr<MethodDefinition> 
 	int descriptor_index = genUTF8Constant("([Ljava/lang/String;)V", constant_pool);
 	Field_Method_info* main = new Field_Method_info(ACC_PUBLIC | ACC_STATIC,
 		name_index, descriptor_index);
+	shared_ptr<BlockStatement> block = node->block;
+	extractConstantFromBlockStatement(block, constant_pool);
 	method_info_v.push_back(main);
 	
 }
-//extrac constant from expression
+//extract constant from expression
 void Assembler::extractConstantFromExpression(const std::shared_ptr<Expression> exp, std::vector<cp_info*>& pool)
 {
 	if (!exp) return;
@@ -111,9 +113,11 @@ void Assembler::literalExpConstant(const shared_ptr<LiteralExpression> node, vec
 {
 	if (node->token.type == TK_STR_CONST) 
 	{
-		genUTF8Constant(node->token.lexem, pool);
+		genStringConstant(node->token.lexem);
 	}
 }
+
+
 
 void Assembler::classCreatorConstant(const std::shared_ptr<ClassCreatorExpression> node, std::vector<cp_info*>& pool)
 {
@@ -315,6 +319,17 @@ int Assembler::genUTF8Constant(std::string content, vector<cp_info*>& pool)
 	return (int)pool.size() - 1;
 }
 
+int Assembler::genStringConstant(std::string& content)
+{
+	int found = lookupUTF8FromConstantPool(content);
+	if (found == -1) {
+		found = genUTF8Constant(content, constant_pool);
+	}
+	CONSTANT_String_info* info = new CONSTANT_String_info();
+	info->string_index = found;
+	constant_pool.push_back(info);
+	return (int)constant_pool.size() - 1;
+}
 /*method reference contains class info and method's name and its descriptor*/
 int Assembler::genMethodRef(string classname, string id, string type, vector<cp_info*>& pool)
 {
@@ -365,6 +380,27 @@ int Assembler::lookupNameTypeFromConstantPool(string name, string type)
 	}
 	int ret = lookupNameTypeFromConstantPool(name_index, type_index);
 	return ret;
+}
+
+int Assembler::lookupStringFromConstantPool(std::string& content) 
+{
+	int index = -1;
+	for (int i = 0; i < (int)constant_pool.size(); i++)
+	{
+		cp_info* cur = constant_pool[i];
+		if (cur->tag != CONSTANT_String)  continue;
+		CONSTANT_String_info* info = dynamic_cast<CONSTANT_String_info*>(cur);
+		int strindex = info->string_index;
+		if (constant_pool[strindex]->tag != CONSTANT_Utf8) {
+			cerr << "Invalid Constant_string_info" << endl;
+			break;
+		}
+		CONSTANT_Utf8_info* utf8 = dynamic_cast<CONSTANT_Utf8_info*>(constant_pool[strindex]);
+		if (isEqual(content.length(), utf8->byte, content)) {
+			return i;
+		}
+	}
+	return index;
 }
 
 int Assembler::lookupUTF8FromConstantPool(std::string target)
@@ -591,8 +627,14 @@ void Assembler::writeFieldOrMethod(Field_Method_info* info)
 			Instruction* cur = *it;
 			writeInt8(cur->opcode);
 			if (cur->length > 1) {
-				writeInt16(cur->operand);
-			}
+				if (cur->opcode == 0x12) {
+					writeInt8(cur->operand);
+				}
+				else {
+					writeInt16(cur->operand);
+				}
+				
+			} 
 			delete cur;
 			cur = nullptr;
 		}
@@ -674,12 +716,12 @@ void CodeGenVisitor::visit(shared_ptr<LiteralExpression>(node))
 {	
 	Token_Type type = node->token.type;
 	if (node->token.type == TK_STR_CONST) {
-		int str_index = assembler->lookupUTF8FromConstantPool(node->token.lexem);
+		int str_index = assembler->lookupStringFromConstantPool(node->token.lexem);
 		//ldc str_index;
 		Instruction* instruction = new Instruction();
 		instruction->opcode = instructions.instructions["ldc"];
-		instruction->operand = str_index;
-		instruction->length = 5;
+		instruction->operand = (uint8_t)str_index;
+		instruction->length = 2;
 		appendInstruction(instruction);
 		updateStack(1);
 	}

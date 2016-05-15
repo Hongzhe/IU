@@ -112,6 +112,8 @@ private:
 	
 	int genUTF8Constant(std::string, std::vector<cp_info*>&);
 	
+	int genStringConstant(std::string&);
+
 	int genNameAndType(std::string, std::string, std::vector<cp_info*>&);
 	
 	int genNameAndType(int, int, std::vector<cp_info*>&);
@@ -123,6 +125,8 @@ private:
 	int lookupMethodRef(int class_index, int nameType_index);
 
 	int lookupMethodRef(std::string classname, std::string name, std::string type);
+	
+	int lookupStringFromConstantPool(std::string&);
 
 	int Assembler::lookupClassFromConstantPool(std::string target);
 	
