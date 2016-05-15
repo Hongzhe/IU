@@ -76,7 +76,9 @@ private:
 	
 	void writeFieldOrMethods(std::vector<Field_Method_info*>&);
 
-	void writeCodeAttribute(Code_attribute* codeAttr);
+	void writeFieldOrMethod(Field_Method_info*);
+
+	void extractConstantFromMainMethod(std::shared_ptr<MethodDefinition> node);
 
 	void extractConstantFromExpStatement(std::shared_ptr<ExpStatement>, std::vector<cp_info*>&);
 
@@ -137,7 +139,9 @@ private:
 	std::string Assembler::genFieldDescriptor(std::string& type);
 
 	Code_attribute* Assembler::genCodeAttribute(std::shared_ptr<MethodDefinition> method);
-
+	
+	void genMainMethod(std::shared_ptr<MethodDefinition> node);
+	
 	void freeConstantPool();
 public:
 	
@@ -150,9 +154,7 @@ public:
 	void prepare();
 	
 	void startGen(std::string dir);
-	
-	void end();
-	
+		
 	void genConstantPool(BlockSymbolTable*);
 	
 	

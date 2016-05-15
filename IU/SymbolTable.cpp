@@ -53,7 +53,9 @@ BlockSymbolTable* SymbolTable::addClass(std::shared_ptr<ClassNode> root)
 	{
 		addMethodDefinition(*it_methods, block);
 	}
-
+	if (root->mainMethod) {
+		addMethodDefinition(root->mainMethod, block);
+	}
 	return block;
 
 }

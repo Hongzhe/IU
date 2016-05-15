@@ -176,6 +176,7 @@ public:
 	Token classname;
 	std::vector<std::shared_ptr<MethodDefinition>> methods;
 	std::vector<std::shared_ptr<Formal>> fields;
+	std::shared_ptr<MethodDefinition> mainMethod;
 	std::unique_ptr<ClassNode> parent;
 	std::string parentname;
 	void accept(IVisitor* visitor) { visitor->visit(std::shared_ptr<ClassNode>(this)); }

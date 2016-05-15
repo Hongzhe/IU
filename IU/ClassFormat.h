@@ -13,6 +13,13 @@ enum CONSTANT_TYPE
 	CONSTANT_HOLDER = 0xcc,
 };
 
+enum METHOD_ACCESS {
+	ACC_PUBLIC = 0x0001,
+	ACC_PRIVATE = 0x0002,
+	ACC_STATIC = 0x0008,
+	ACC_FINAL = 0x0010
+};
+
 class Instruction
 {
 public:

@@ -91,7 +91,6 @@ public:
 
 		instructions["ifnull"] = 0xc6;
 		instructions["ifnonnull"] = 0xc7;
-
 	}
 };
 
@@ -110,6 +109,8 @@ public:
 
 	int byte_length;
 
+	bool isStatic;
+
 	std::string current_returntype;
 
 	Instructions instructions;
@@ -123,7 +124,7 @@ public:
 	CodeGenVisitor(Assembler* assembler, Instructions ins) : assembler(assembler), instructions(ins) {
 		max_stack = 0;
 		current_stack = 0;
-		max_variable = 1;
+		max_variable = 0;
 		byte_length = 0;
 		instructions.init();
 	}
@@ -137,9 +138,10 @@ public:
 	{
 		max_stack = 0;
 		current_stack = 0;
-		max_variable = 1;
+		max_variable = 0;
 		byte_length = 0;
 		local_variable.clear();
+		//codes.clear();
 		freeCodes();
 	}
 
@@ -188,5 +190,5 @@ private:
 
 	int findLocalVariable(std::string&);
 
-	Instruction* createLoadInstruction(std::string type, int index);
+	Instruction* createLoadInstruction(std::string& type, int index, std::string&);
 };

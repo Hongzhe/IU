@@ -85,7 +85,13 @@ shared_ptr<ClassNode> Parser::parse_class() {
 			if (!m) {
 				break;
 			}
-			methods.push_back(m);
+			if (m->name.lexem == "main") {
+				node->mainMethod = m;
+			}
+			else {
+				methods.push_back(m);
+			}
+			
 		}
 		token = lexer.getToken();
 		if (token.type == TK_RIGHT_BRAC) {

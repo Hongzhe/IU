@@ -43,6 +43,9 @@ BlockSymbolTable* Analyzer::analyze(std::shared_ptr<ClassNode> root)
 	{
 		analyze_field(*field_it);
 	}
+	if (root->mainMethod) {
+		analyze_method(root->mainMethod);
+	}
 	auto methods = root->methods;
 	for (auto it = methods.cbegin(); it != methods.cend(); ++it) {
 		analyze_method(*it);

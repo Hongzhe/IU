@@ -56,6 +56,16 @@ void Assembler::genHead()
 	writeInt16(version);
 }
 
+void Assembler::extractConstantFromMainMethod(std::shared_ptr<MethodDefinition> node)
+{
+	if (!node) return;
+	int name_index = genUTF8Constant(node->name.lexem, constant_pool);
+	int descriptor_index = genUTF8Constant("([Ljava/lang/String;)V", constant_pool);
+	Field_Method_info* main = new Field_Method_info(ACC_PUBLIC | ACC_STATIC,
+		name_index, descriptor_index);
+	method_info_v.push_back(main);
+	
+}
 //extrac constant from expression
 void Assembler::extractConstantFromExpression(const std::shared_ptr<Expression> exp, std::vector<cp_info*>& pool)
 {
@@ -137,7 +147,7 @@ void Assembler::extractConstantFromField(const std::shared_ptr<Formal> field,
 	info->class_index = class_index;
 	info->name_and_type_index = nameAndType;
 	constant_pool.push_back(info);
-	Field_Method_info* field_info = new Field_Method_info(0x0001, id_index, type_index);
+	Field_Method_info* field_info = new Field_Method_info(ACC_PUBLIC, id_index, type_index);
 	field_info_v.push_back(field_info);
 }
 
@@ -227,10 +237,9 @@ void Assembler::extractConstantFromMethod(const shared_ptr<MethodDefinition> met
 	int descriptor_index = genUTF8Constant(method_descriptor, constant_pool);
 	int name_type_index = genNameAndType(id_index, descriptor_index, constant_pool);
 	int methodref_index = genMethodRef(cur_class_index, name_type_index);
-
 	shared_ptr<BlockStatement> block = method->block;
 	extractConstantFromBlockStatement(block, constant_pool);
-	Field_Method_info* method_info = new Field_Method_info(0x0001, id_index, descriptor_index);
+	Field_Method_info* method_info = new Field_Method_info(ACC_PUBLIC, id_index, descriptor_index);
 	method_info_v.push_back(method_info);
 }
 
@@ -250,6 +259,7 @@ void Assembler::genConstantPool(BlockSymbolTable* symboltable)
 	for (int i = 0; i < (int)methods.size(); i++) {
 		extractConstantFromMethod(methods[i]);
 	}
+	extractConstantFromMainMethod(current_ast->mainMethod);
 	genUTF8Constant("Code", constant_pool);
 	writeConstantPool(constant_pool);
 	writeInt16(0x0001); //access_flag
@@ -257,8 +267,6 @@ void Assembler::genConstantPool(BlockSymbolTable* symboltable)
 	writeInt16(obj_index); //parent class
 	writeInt16(0x0000);//interface count
 	writeFieldOrMethods(field_info_v);
-//	writeFieldOrMethods(method_info_v);
-	//writeInt16(0x0000);
 }
 
 int Assembler::genClassInfo(std::string classname, vector<cp_info*>& pool)
@@ -533,13 +541,65 @@ void Assembler::writeMethodInfo()
 		auto symbolmap = analyzer.table->classMap;
 		BlockSymbolTable* classtable = symbolmap[current_ast->classname.lexem];
 		current_method_symbolTable = classtable->children[i];
+		codegenVisitor.isStatic = false;
 		Code_attribute* codeattr = genCodeAttribute(methods[i]);
 		if (!codeattr) continue;
 		Field_Method_info* m = method_info_v[i];
 		m->attribute_count = 1;
 		m->attributes.push_back(codeattr);
 	}
+	genMainMethod(current_ast->mainMethod);
 	writeFieldOrMethods(method_info_v);
+}
+
+//generate methodref for main method.
+void Assembler::genMainMethod(std::shared_ptr<MethodDefinition> node)
+{
+	if (!node) return;
+	Field_Method_info* main = method_info_v.back();
+	auto symbolmap = analyzer.table->classMap;
+	BlockSymbolTable* classtable = symbolmap[current_ast->classname.lexem];
+	current_method_symbolTable = classtable->children.back(); //last blocksymboltable should be the one for main method.
+	codegenVisitor.isStatic = true;
+	Code_attribute* codeattr = genCodeAttribute(node);
+	main->attribute_count = 1;
+	main->attributes.push_back(codeattr);
+}
+
+void Assembler::writeFieldOrMethod(Field_Method_info* info)
+{
+	writeInt16(info->access_flag);
+	writeInt16(info->name_index);
+	writeInt16(info->descriptor_index);
+	writeInt16(info->attribute_count);
+	for (int i = 0; i < info->attribute_count; i++)
+	{
+		auto attribute = info->attributes[i];
+		Code_attribute* code = dynamic_cast<Code_attribute*>(attribute);
+		writeInt16(code->attribute_name_index);
+		writeInt32(code->attribute_length);
+		writeInt16(code->max_stack);
+		if (info->access_flag & ACC_STATIC == ACC_STATIC) {
+			writeInt16((uint16_t)codegenVisitor.local_variable.size());
+		}
+		else {
+			writeInt16((uint16_t)codegenVisitor.local_variable.size() + 1);
+		}
+		writeInt32(code->code_length);
+		for (auto it = code->code.cbegin(); it != code->code.cend(); it++)
+		{
+			Instruction* cur = *it;
+			writeInt8(cur->opcode);
+			if (cur->length > 1) {
+				writeInt16(cur->operand);
+			}
+			delete cur;
+			cur = nullptr;
+		}
+		code->code.clear();
+		writeInt16(code->exception_table_length);
+		writeInt16(code->attribute_count);
+	}
 }
 
 void Assembler::writeFieldOrMethods(std::vector<Field_Method_info*>& collections)
@@ -547,36 +607,13 @@ void Assembler::writeFieldOrMethods(std::vector<Field_Method_info*>& collections
 	writeInt16((unsigned short)collections.size());
 	for (auto it = collections.cbegin(); it != collections.cend(); it++)
 	{
-		Field_Method_info* info = *it;
-		writeInt16(info->access_flag);
-		writeInt16(info->name_index);
-		writeInt16(info->descriptor_index);
-		writeInt16(info->attribute_count);
-		for (int i = 0; i < info->attribute_count; i++) 
-		{
-			auto attribute = info->attributes[i];
-			Code_attribute* code = dynamic_cast<Code_attribute*>(attribute);
-			writeInt16(code->attribute_name_index);
-			writeInt32(code->attribute_length);
-			writeInt16(code->max_stack);
-			writeInt16((uint16_t)codegenVisitor.local_variable.size() + 1);
-			writeInt32(code->code_length);
-			for (auto it = code->code.cbegin(); it != code->code.cend(); it++) 
-			{
-				Instruction* cur = *it;
-				writeInt8(cur->opcode);
-				if (cur->length > 1) {
-					writeInt16(cur->operand);
-				}
-			}
-			writeInt16(code->exception_table_length);
-			writeInt16(code->attribute_count);
-		}
+		writeFieldOrMethod(*it);
 	}
 }
 
 Code_attribute* Assembler::genCodeAttribute(shared_ptr<MethodDefinition> method)
 {
+	if (!method) return nullptr;
 	codegenVisitor.reset();
 	current_scope_index = 0;
 	codegenVisitor.visit(method);
@@ -587,9 +624,10 @@ Code_attribute* Assembler::genCodeAttribute(shared_ptr<MethodDefinition> method)
 	}
 	Code_attribute* codeAttr = new Code_attribute(codeindex);
 	codeAttr->max_stack = codegenVisitor.max_stack;
-	codeAttr->max_locals = codegenVisitor.max_variable;
+	codeAttr->max_locals = codegenVisitor.local_variable.size();
+	if (!codegenVisitor.isStatic) codeAttr->max_locals++;
 	codeAttr->code_length = codegenVisitor.byte_length;
-	codeAttr->code = codegenVisitor.codes;
+	codeAttr->code = std::move(codegenVisitor.codes);
 	codeAttr->attribute_count = 0;
 	codeAttr->exception_table_length = 0;
 	codeAttr->attribute_length = (int)sizeof(uint16_t) + (int)sizeof(uint16_t) + (int)sizeof(uint32_t) + codeAttr->code_length
@@ -667,7 +705,10 @@ void CodeGenVisitor::visit(shared_ptr<LiteralExpression>(node))
 	}
 	else if (node->token.type == TK_OBJ_ID) {
 		//search local variable. If not found search field
-		int local_variable = findLocalVariable(node->token.lexem) + 1;
+		int local_variable = findLocalVariable(node->token.lexem);
+		if (!isStatic) {
+			local_variable++;
+		}
 		if (local_variable != -1) {   //lookup the symbol table
 			Symbol* symbol = assembler->current_scope->lookupSymbolByName(node->token.lexem);
 			if (!symbol) {
@@ -675,7 +716,8 @@ void CodeGenVisitor::visit(shared_ptr<LiteralExpression>(node))
 				return;
 			}
 			string returntype = symbol->type;
-			Instruction* load = createLoadInstruction(returntype, local_variable);
+			string opname = "load";
+			Instruction* load = createLoadInstruction(returntype, local_variable,opname);
 			appendInstruction(load);
 			updateStack(1);
 		}
@@ -714,12 +756,20 @@ void CodeGenVisitor::visit(shared_ptr<BinaryExpression> node)
 		int startindex = (int)codes.size() - 1;
 		visit(right);
 		int localindex = -1;
+		string returntype;
 		if (left->node_type == LITERAL_EXP) {
 			shared_ptr<LiteralExpression> leftexp = dynamic_pointer_cast<LiteralExpression>(left);
 			if (leftexp->token.type == TK_OBJ_ID) {
 				for (int i = 0; i < (int)local_variable.size(); i++) {
 					if (leftexp->token.lexem == local_variable[i]) {
-						localindex = i + 1; //local_variable[0] is reserved for 'this'
+						localindex = i; //local_variable[0] is reserved for 'this'
+						if (!isStatic) localindex++;
+						Symbol* symbol = assembler->current_scope->lookupSymbolByName(leftexp->token.lexem);
+						if (!symbol) {
+							cerr << "fail to find symbol " << leftexp->token.lexem << endl;
+							return;
+						}
+						returntype = symbol->type;
 						break;
 					}
 				}
@@ -743,23 +793,15 @@ void CodeGenVisitor::visit(shared_ptr<BinaryExpression> node)
 		}
 		else if (left->node_type == VAR_DECL_EXP) {
 			shared_ptr<VariableDeclareExpression> declare = dynamic_pointer_cast<VariableDeclareExpression>(left);
+			localindex = (int)local_variable.size();
 			local_variable.push_back(declare->id.lexem);
-			localindex = (int)local_variable.size() + 1;
+			if (!isStatic) localindex++;
+			returntype = declare->type.lexem;
 		}
-		Instruction* store = new Instruction();
-		if (localindex < 4) {
-			stringstream ss;
-			ss << localindex;
-			string op = "istore_" + ss.str();
-			store->opcode = instructions.instructions[op];
-			store->length = 1;
-		}
-		else {
-			store->opcode = instructions.instructions["istore"];
-			store->operand = localindex;
-			store->length = 3;
-		}
+		string opname = "store";
+		Instruction* store = createLoadInstruction(returntype, localindex,opname);
 		appendInstruction(store);
+		
 		updateStack(-1);
 	}
 	else {
@@ -969,13 +1011,6 @@ void CodeGenVisitor::visit(shared_ptr<WhileStatement> node)
 void CodeGenVisitor::visit(shared_ptr<BlockStatement> node)
 {
 	vector<shared_ptr<Statement>> stmts = node->stmts;
-	if (stmts.empty()) {
-		Instruction* ret = new Instruction(instructions.instructions["return"], 1);
-		appendInstruction(ret);
-		updateStack(-1);
-		return;
-	}
-
 	auto method_scope = assembler->current_method_symbolTable;
 	for (int i = 0; i < stmts.size(); i++)
 	{
@@ -1021,11 +1056,22 @@ void CodeGenVisitor::visit(std::shared_ptr<MethodDefinition> node)
 		return;
 	}
 	vector<shared_ptr<Formal>>arguments = node->arguments;
+	if (node->name.lexem == "main") {
+		local_variable.push_back("args");
+		max_variable++;
+	}
 	for (shared_ptr<Formal> argument : arguments) {
 		local_variable.push_back(argument->id.lexem);
 		max_variable++;
 	}
 	shared_ptr<BlockStatement> statement = node->block;
+	if (statement->stmts.empty()) {
+		uint8_t op = instructions.instructions["return"];
+		Instruction* ret = new Instruction(instructions.instructions["return"], 1);
+		appendInstruction(ret);
+		updateStack(-1);
+		return;
+	}
 	current_returntype = node->returntype.lexem;
 	visit(statement);
 }
@@ -1124,15 +1170,13 @@ int CodeGenVisitor::findLocalVariable(string& variable)
 }
 
 //create a load instruction
-Instruction* CodeGenVisitor::createLoadInstruction(std::string type, int index)
+Instruction* CodeGenVisitor::createLoadInstruction(std::string& type, int index, string& opname)
 {
 	if (index < 1) return nullptr;
 	if (type == "" || type.empty()) return nullptr;
-
 	Instruction* ins = new Instruction();
-	string opname = "aload";
-	if (type == "Int") {
-		opname = "iload";
+	if (type == "Int" || "Bool") {
+		opname = "i" + opname;
 		if (index < 4 && index > 0) {
 			opname += "_";
 			stringstream ss;
@@ -1143,6 +1187,7 @@ Instruction* CodeGenVisitor::createLoadInstruction(std::string type, int index)
 		ins->length = 1;
 		return ins;
 	}
+	opname = "a" + opname;
 	ins->opcode = instructions.instructions[opname];
 	ins->operand = index;
 	ins->length = 3;
