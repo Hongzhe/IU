@@ -122,6 +122,10 @@ private:
 	
 	int lookupField(std::string);
 
+	int lookupFieldRef(int class_index, int name_type_index);
+
+	int lookupFieldRef(std::string classname, std::string name, std::string type);
+	
 	int lookupMethodRef(int class_index, int nameType_index);
 
 	int lookupMethodRef(std::string classname, std::string name, std::string type);

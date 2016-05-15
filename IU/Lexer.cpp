@@ -130,7 +130,7 @@ Token Lexer::getToken()
 			else if (c == '\"') {
 				state = STR_STATE;
 				token.type = TK_STR_CONST;
-				//token.lexem = c;
+				token.lexem = c;
 			}
 			else if (c == '=') {
 				token.type = TK_ASSIGN;
@@ -272,7 +272,7 @@ Token Lexer::getToken()
 		case STR_STATE:
 			str_escapelevel = 0;
 			if (c == '\"') {
-				//token.lexem.append(1, c);
+				token.lexem.append(1, c);
 				state = DONE_STATE;
 
 			}

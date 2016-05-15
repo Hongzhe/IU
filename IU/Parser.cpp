@@ -537,8 +537,8 @@ shared_ptr<Expression> Parser::parse_primary()
 			return n;
 		}
 		else {
-			lexer.unget(prev);
 			lexer.unget();
+			lexer.unget(prev);
 			auto node = parse_method_invocation();
 			if (node) {
 				return node;

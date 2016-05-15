@@ -32,7 +32,6 @@ void Assembler::startGen(string dir)
 		writeInt16(0x0000); 
 		out.close();
 	}
-	cout << "class file generated" << endl;
 }
 
 void Assembler::freeConstantPool()
@@ -98,6 +97,23 @@ void Assembler::extractConstantFromExpression(const std::shared_ptr<Expression> 
 void Assembler::methodInvocConstant(const std::shared_ptr<MethodInvocationExpression> node, std::vector<cp_info*>& pool)
 {
 	vector<shared_ptr<Expression>> arguments = node->arguments;
+	if (node->name.lexem == "println") 
+	{
+		int class_index = genClassInfo("java/lang/System", constant_pool);
+		int nameAndType = genNameAndType("out", "Ljava/io/PrintStream;", constant_pool);
+		Fieldref_info* field = new Fieldref_info();
+		field->class_index = class_index;
+		field->name_and_type_index = nameAndType;
+		constant_pool.push_back(field);
+		int method_class = genClassInfo("java/io/PrintStream", constant_pool);
+		int nameindex = genUTF8Constant("println", pool);
+		int typeindex = genUTF8Constant("(Ljava/lang/String;)V", pool);
+		int methodNameAndType = genNameAndType("println", "(Ljava/lang/String;)V", constant_pool);
+		Methodref_info* method_info = new Methodref_info();
+		method_info->class_index = method_class;
+		method_info->name_and_type_index = methodNameAndType;
+		constant_pool.push_back(method_info);
+	}
 	for (auto it = arguments.cbegin(); it != arguments.cend(); it++)
 	{
 		extractConstantFromExpression(*it, pool);
@@ -113,7 +129,12 @@ void Assembler::literalExpConstant(const shared_ptr<LiteralExpression> node, vec
 {
 	if (node->token.type == TK_STR_CONST) 
 	{
-		genStringConstant(node->token.lexem);
+		string content = node->token.lexem;
+		string str = "";
+		for (int i = 1; i < content.length() - 1; i++) {
+			str+=content[i];
+		}
+		genStringConstant(str);
 	}
 }
 
@@ -354,12 +375,10 @@ int Assembler::lookupNameTypeFromConstantPool(__int16 name, __int16 type)
 	int index = -1;
 	for (int i = 0; i < (int)constant_pool.size(); i++) {
 		cp_info* cur = constant_pool[i];
-		if (cur->tag != 0xb0) break;
+		if (cur->tag != CONSTANT_NameAndType) continue;
 		CONSTANT_NameAndType_info* info = dynamic_cast<CONSTANT_NameAndType_info*>(cur);
-		if (info->name_index != name || info->descriptor_index != type)
-			continue;
-		index = i;
-		break;
+		if (info->name_index == name && info->descriptor_index == type)
+			return i;
 	}
 	return index;
 }
@@ -440,7 +459,7 @@ int Assembler::lookupMethodRef(int class_index, int nameType_index)
 	for (int i = 0; i < (int)constant_pool.size(); i++)
 	{
 		cp_info* info = constant_pool[i];
-		if (info->tag != 0x0a) continue;
+		if (info->tag != CONSTANT_Methodref) continue;
 		Methodref_info* refinfo = dynamic_cast<Methodref_info*>(info);
 		if (refinfo->class_index == class_index &&
 			refinfo->name_and_type_index == nameType_index) {
@@ -470,6 +489,28 @@ int Assembler::lookupConstantTable(unsigned __int8 tag, std::string target)
 		break;
 	}
 	return index;
+}
+int Assembler::lookupFieldRef(int class_index, int name_type_index)
+{
+	int index = -1;
+	for (int i = 0; i < constant_pool.size(); i++) 
+	{
+		cp_info* cur = constant_pool[i];
+		if (cur->tag != CONSTANT_Fieldref) continue;
+		Fieldref_info* info = dynamic_cast<Fieldref_info*>(cur);
+		if (info->class_index && info->name_and_type_index == name_type_index) {
+			index = i;
+			break;
+		}
+	}
+	return index;
+}
+
+int Assembler::lookupFieldRef(std::string classname, std::string name, std::string type)
+{
+	int class_index = lookupClassFromConstantPool(classname);
+	int name_type_index = lookupNameTypeFromConstantPool(name, type);
+	return lookupFieldRef(class_index, name_type_index);
 }
 
 int Assembler::lookupField(string field_name)
@@ -716,7 +757,12 @@ void CodeGenVisitor::visit(shared_ptr<LiteralExpression>(node))
 {	
 	Token_Type type = node->token.type;
 	if (node->token.type == TK_STR_CONST) {
-		int str_index = assembler->lookupStringFromConstantPool(node->token.lexem);
+		string content = node->token.lexem;
+		string str = "";
+		for (int i = 1; i < content.length() - 1; i++) {
+			str += content[i];
+		}
+		int str_index = assembler->lookupStringFromConstantPool(str);
 		//ldc str_index;
 		Instruction* instruction = new Instruction();
 		instruction->opcode = instructions.instructions["ldc"];
@@ -898,12 +944,40 @@ void CodeGenVisitor::visit(shared_ptr<MethodInvocationExpression> node)
 	//search for method name and its descriptor
 	vector<shared_ptr<Expression>> arguments = node->arguments;
 	string name = node->name.lexem;
-	int name_index = assembler->lookupConstantTable(0x01, name);
-	//assembler.lookupMethodRef(assembler.current_ast->classname.lexem, name, )
+	string descriptor_str = "(";
 	for (auto it = arguments.cbegin(); it != arguments.cend(); it++) {
-		visit(*it);
+		shared_ptr<Expression> arg = *it;
+		switch (arg->node_type) 
+		{
+		case LITERAL_EXP:
+		{
+			auto exp = dynamic_pointer_cast<LiteralExpression>(arg);
+			Token token = exp->token;
+			if (token.type == TK_STR_CONST) {
+				descriptor_str += "Ljava/lang/String;";
+			}
+			else if (token.type == TK_INT_CONST) {
+				descriptor_str += "I";
+			}
+			else if (token.lexem == "true" || token.lexem == "false") {
+				descriptor_str += "Z";
+			}
+		}
+			break;
+		}
 	}
-	Methodref_info* info = dynamic_cast<Methodref_info*>(assembler->constant_pool[name_index]);
+	int method_index = -1;
+	if (name == "println") {
+		method_index = assembler->lookupMethodRef("java/io/PrintStream", "println", "(Ljava/lang/String;)V");
+	}
+	else {	
+		
+	}
+	if (method_index < 0) {
+		cerr << "method " << name << " isn't found in constant_pool" << endl;
+		return;
+	}
+	Methodref_info* info = dynamic_cast<Methodref_info*>(assembler->constant_pool[method_index]);
 	CONSTANT_NameAndType_info* nameandtype = dynamic_cast<CONSTANT_NameAndType_info*>(
 		assembler->constant_pool[info->name_and_type_index]);
 	CONSTANT_Utf8_info* descriptor = dynamic_cast<CONSTANT_Utf8_info*>(
@@ -916,9 +990,19 @@ void CodeGenVisitor::visit(shared_ptr<MethodInvocationExpression> node)
 	}
 	char returntype = descriptor->byte[i + 1];
 	
-	//aload_0
-	Instruction* aload0 = new Instruction(instructions.instructions["aload_0"], 1);
-	appendInstruction(aload0);
+	if (name == "println") {
+		int field_index = assembler->lookupFieldRef("java/lang/System", "out", "Ljava/io/PrintStream;");
+		if (field_index < 0) {
+			cerr << "static field is not found" << endl;
+			return;
+		}
+		Instruction* getStatic = new Instruction(instructions.instructions["getstatic"], field_index, 3);
+		appendInstruction(getStatic);
+	}
+	else {
+		Instruction* aload0 = new Instruction(instructions.instructions["aload_0"], 1);
+		appendInstruction(aload0);
+	}
 	updateStack(1);
 	for (auto it = arguments.cbegin(); it != arguments.cend(); it++)
 	{
@@ -928,7 +1012,7 @@ void CodeGenVisitor::visit(shared_ptr<MethodInvocationExpression> node)
 	if (returntype != 'V') {
 		prevstack--;
 	}
-	Instruction* invoke = new Instruction(instructions.instructions["invokevirtual"], name_index, 3);
+	Instruction* invoke = new Instruction(instructions.instructions["invokevirtual"], method_index, 3);
 	appendInstruction(invoke);
 	updateStack(prevstack * -1);
 }

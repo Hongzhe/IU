@@ -220,6 +220,7 @@ void SymbolTable::printSymbolTable()
 
 void BlockSymbolTable::printBlockSymbolTable(BlockSymbolTable* block)
 {
+	if (!block) return;
 	auto stmtb = block->table;
 	cout << "{ " << endl;
 	for (auto it = stmtb.cbegin(); it != stmtb.cend(); ++it)
